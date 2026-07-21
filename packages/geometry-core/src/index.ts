@@ -25,3 +25,4 @@ export type {
   ValidationResult,
   ValidationRules,
 } from "./validate/types";
+export { mirrorShapes } from "./geometry/mirror";
