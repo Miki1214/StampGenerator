@@ -21,4 +21,12 @@ describe("ValidationMessages", () => {
     expect(messages[0].textContent).toBe("Design is empty");
     expect(messages[1].textContent).toBe("Feature too narrow");
   });
+
+  it("renders nothing when given an ok validation result", () => {
+    const { container } = render(
+      <ValidationMessages result={{ ok: true }} />,
+    );
+
+    expect(container.innerHTML).toBe("");
+  });
 });

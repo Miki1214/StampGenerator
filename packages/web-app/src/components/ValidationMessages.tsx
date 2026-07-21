@@ -5,11 +5,13 @@ export interface ValidationMessagesProps {
 }
 
 export function ValidationMessages({ result }: ValidationMessagesProps) {
-  const issues = result.ok ? [] : result.issues;
+  if (result.ok) {
+    return null;
+  }
 
   return (
     <ul>
-      {issues.map((issue) => (
+      {result.issues.map((issue) => (
         <li key={issue.code}>{issue.message}</li>
       ))}
     </ul>
