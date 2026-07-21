@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "lint": "eslint \"packages/**/*.{ts,tsx}\"",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && vitest run",
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write ."
   },
@@ -21,6 +21,7 @@
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
     "prettier": "^3.5.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }
