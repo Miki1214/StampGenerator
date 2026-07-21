@@ -16,11 +16,11 @@ export {
 } from "./import/fabric-canvas-importer";
 export { TextOutlineImporter } from "./import/text-outline-importer";
 export { initManifold, ShapeCleaner } from "./validate/shape-cleaner";
+export { ShapeValidator } from "./validate/shape-validator";
 export type {
   PathShapeSet,
   PolygonWithHoles,
   Ring,
-  ShapeValidator,
   ValidationIssue,
   ValidationResult,
   ValidationRules,
