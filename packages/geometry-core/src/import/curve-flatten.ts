@@ -20,6 +20,45 @@ export function flattenCubicBezier(
   return points;
 }
 
+/**
+ * Flatten a circular arc from `startAngle` to `endAngle` (radians, CCW)
+ * into a polyline whose chord error stays within `tolerance`.
+ */
+export function flattenArc(
+  center: Point2D,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+  tolerance: number,
+): Point2D[] {
+  const sweep = endAngle - startAngle;
+  if (radius <= 0 || sweep === 0) {
+    return [
+      pointOnArc(center, radius, startAngle),
+      pointOnArc(center, radius, endAngle),
+    ];
+  }
+
+  // Chord half-angle bound: r*(1 - cos(θ/2)) ≤ tolerance
+  const clamped = Math.min(1, Math.max(-1, 1 - tolerance / radius));
+  const maxStep = 2 * Math.acos(clamped);
+  const steps = Math.max(1, Math.ceil(Math.abs(sweep) / maxStep));
+
+  const points: Point2D[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = startAngle + (sweep * i) / steps;
+    points.push(pointOnArc(center, radius, angle));
+  }
+  return points;
+}
+
+function pointOnArc(center: Point2D, radius: number, angle: number): Point2D {
+  return {
+    x: center.x + radius * Math.cos(angle),
+    y: center.y + radius * Math.sin(angle),
+  };
+}
+
 function copyPoint(p: Point2D): Point2D {
   return { x: p.x, y: p.y };
 }

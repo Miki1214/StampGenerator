@@ -5,4 +5,4 @@ export type {
   RawRing,
   ShapeImporter,
 } from "./import/types";
-export { flattenCubicBezier } from "./import/curve-flatten";
+export { flattenArc, flattenCubicBezier } from "./import/curve-flatten";
