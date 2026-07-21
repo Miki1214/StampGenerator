@@ -14,7 +14,12 @@ export {
   type FabricCanvasLike,
   type FabricStrokeLike,
 } from "./import/fabric-canvas-importer";
-export { TextOutlineImporter } from "./import/text-outline-importer";
+export {
+  TextOutlineImporter,
+  BUNDLED_FONT_FILES,
+  setBundledFontDataProvider,
+  type BundledFontDataProvider,
+} from "./import/text-outline-importer";
 export { initManifold, getManifold, ShapeCleaner } from "./validate/shape-cleaner";
 export { ShapeValidator } from "./validate/shape-validator";
 export type {

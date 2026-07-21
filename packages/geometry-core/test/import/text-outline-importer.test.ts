@@ -1,5 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { TextOutlineImporter } from "../../src/import/text-outline-importer";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { beforeAll, describe, expect, it } from "vitest";
+import {
+  BUNDLED_FONT_FILES,
+  setBundledFontDataProvider,
+  TextOutlineImporter,
+} from "../../src/import/text-outline-importer";
+import type { BundledFontId } from "../../src/import/types";
+
+const fontsDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../assets/fonts",
+);
+
+beforeAll(() => {
+  setBundledFontDataProvider((fontId: BundledFontId) => {
+    const buffer = readFileSync(join(fontsDir, BUNDLED_FONT_FILES[fontId]));
+    return buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    );
+  });
+});
 
 describe("TextOutlineImporter", () => {
   it("imports the glyph outline for a single character using a bundled font", () => {

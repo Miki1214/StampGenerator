@@ -1,7 +1,4 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import opentype, { type Font, type PathCommand } from "opentype.js";
+import { parse as parseFont, type Font, type PathCommand } from "opentype.js";
 import { flattenCubicBezier } from "./curve-flatten";
 import type {
   BundledFontId,
@@ -11,17 +8,23 @@ import type {
   TextImportRequest,
 } from "./types";
 
-const FONT_FILES: Record<BundledFontId, string> = {
+export const BUNDLED_FONT_FILES: Record<BundledFontId, string> = {
   sans: "NotoSans-Regular.ttf",
   serif: "NotoSerif-Regular.ttf",
 };
 
-const fontsDir = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../assets/fonts",
-);
+export type BundledFontDataProvider = (fontId: BundledFontId) => ArrayBuffer;
 
 const fontCache = new Map<BundledFontId, Font>();
+let fontDataProvider: BundledFontDataProvider | null = null;
+
+/** Inject font bytes (Node tests use fs; the browser uses fetch). */
+export function setBundledFontDataProvider(
+  provider: BundledFontDataProvider,
+): void {
+  fontDataProvider = provider;
+  fontCache.clear();
+}
 
 export class TextOutlineImporter
   implements ShapeImporter<TextImportRequest>
@@ -62,16 +65,17 @@ function loadFont(fontId: BundledFontId): Font {
     return cached;
   }
 
-  const fileName = FONT_FILES[fontId];
-  if (!fileName) {
+  if (!fontDataProvider) {
+    throw new Error(
+      "Bundled font data provider is not set; call setBundledFontDataProvider first",
+    );
+  }
+
+  if (!(fontId in BUNDLED_FONT_FILES)) {
     throw new Error(`Unknown bundled font id: ${String(fontId)}`);
   }
 
-  const buffer = readFileSync(join(fontsDir, fileName));
-  const font = opentype.parse(buffer.buffer.slice(
-    buffer.byteOffset,
-    buffer.byteOffset + buffer.byteLength,
-  ));
+  const font = parseFont(fontDataProvider(fontId));
   fontCache.set(fontId, font);
   return font;
 }
@@ -87,8 +91,8 @@ function commandsToRings(
   const flush = () => {
     if (current.length > 0) {
       rings.push({ points: current });
-      current = [];
     }
+    current = [];
   };
 
   for (const cmd of commands) {
