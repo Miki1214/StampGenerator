@@ -1,9 +1,11 @@
 export { isPipelineGateReady } from "./pipeline-gate";
 export type {
+  BundledFontId,
   Point2D,
   RawPathSet,
   RawRing,
   ShapeImporter,
+  TextImportRequest,
 } from "./import/types";
 export { flattenArc, flattenCubicBezier } from "./import/curve-flatten";
 export { SvgFileImporter } from "./import/svg-file-importer";
@@ -12,3 +14,4 @@ export {
   type FabricCanvasLike,
   type FabricStrokeLike,
 } from "./import/fabric-canvas-importer";
+export { TextOutlineImporter } from "./import/text-outline-importer";

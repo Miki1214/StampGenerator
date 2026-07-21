@@ -14,3 +14,11 @@ export interface RawPathSet {
 export interface ShapeImporter<TSource> {
   import(source: TSource, tolerance: number): RawPathSet;
 }
+
+export type BundledFontId = "sans" | "serif";
+
+export interface TextImportRequest {
+  text: string;
+  fontId: BundledFontId;
+  fontSizeMm: number;
+}
