@@ -21,4 +21,18 @@ describe("BinaryStlExporter", () => {
     expect(triangleCount).toBe(1);
     expect(bytes.subarray(84).byteLength).toBe(50);
   });
+
+  it("exports a multi-triangle mesh with byte length exactly 84 plus 50 times the triangle count", () => {
+    const mesh: Mesh = {
+      vertices: new Float32Array([
+        0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0,
+      ]),
+      triangleIndices: new Uint32Array([0, 1, 2, 1, 3, 2]),
+    };
+
+    const bytes = new BinaryStlExporter().export(mesh);
+
+    const triangleCount = mesh.triangleIndices.length / 3;
+    expect(bytes.byteLength).toBe(84 + 50 * triangleCount);
+  });
 });
