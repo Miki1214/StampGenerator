@@ -26,3 +26,5 @@ export type {
   ValidationRules,
 } from "./validate/types";
 export { mirrorShapes } from "./geometry/mirror";
+export { scaleToMm } from "./geometry/scale";
+export type { Mesh, StampOptions } from "./geometry/types";
