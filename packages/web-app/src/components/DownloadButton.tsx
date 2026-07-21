@@ -3,13 +3,9 @@ import type {
   ValidationIssue,
 } from "@stamp-generator/geometry-core";
 import { triggerDownload } from "../lib/trigger-download";
+import type { PipelineState } from "../hooks/useStampPipeline";
 
-export type PipelineState =
-  | { status: "idle" }
-  | { status: "importing" }
-  | { status: "validating" }
-  | { status: "ready"; shapes: PathShapeSet }
-  | { status: "invalid"; issues: ValidationIssue[] };
+export type { PipelineState };
 
 export interface DownloadButtonProps {
   state: PipelineState;
