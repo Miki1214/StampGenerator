@@ -44,19 +44,19 @@ packages/web-app/test/lib/
 
 ## TDD checklist
 
-- [ ] `BinaryStlExporter.export()` on a single-triangle mesh produces the
+- [x] `BinaryStlExporter.export()` on a single-triangle mesh produces the
       correct 80-byte header, followed by a 4-byte little-endian triangle
       count of `1`, followed by exactly one 50-byte triangle record.
-- [ ] `BinaryStlExporter.export()` on a multi-triangle mesh produces a byte
+- [x] `BinaryStlExporter.export()` on a multi-triangle mesh produces a byte
       length exactly matching `84 + 50 * triangleCount`.
-- [ ] Exported bytes, parsed back by the test-only `stl-test-reader.ts`,
+- [x] Exported bytes, parsed back by the test-only `stl-test-reader.ts`,
       yield the same triangle count as the input mesh.
-- [ ] Exported bytes, parsed back, yield triangle normals matching the input
+- [x] Exported bytes, parsed back, yield triangle normals matching the input
       mesh's computed face normals within a small tolerance.
-- [ ] `triggerDownload` creates an object URL and clicks a synthetic anchor
+- [x] `triggerDownload` creates an object URL and clicks a synthetic anchor
       element with the expected `download` filename attribute (DOM/component
       test).
-- [ ] `triggerDownload` revokes the object URL after triggering the click (no
+- [x] `triggerDownload` revokes the object URL after triggering the click (no
       leaked blob URLs).
 
 ## Acceptance criteria

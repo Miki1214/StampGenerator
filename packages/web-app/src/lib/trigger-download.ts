@@ -1,5 +1,5 @@
 export function triggerDownload(bytes: Uint8Array, filename: string): void {
-  const blob = new Blob([bytes]);
+  const blob = new Blob([new Uint8Array(bytes)]);
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
@@ -7,4 +7,5 @@ export function triggerDownload(bytes: Uint8Array, filename: string): void {
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
+  URL.revokeObjectURL(objectUrl);
 }
