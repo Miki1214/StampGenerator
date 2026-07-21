@@ -19,6 +19,7 @@ export function DownloadButton({ state, onDownload }: DownloadButtonProps) {
         const bytes = onDownload();
         triggerDownload(bytes, "stamp.stl");
       }}
+      className="border border-accent text-accent font-mono text-sm px-6 py-3 rounded hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     >
       Download STL
     </button>

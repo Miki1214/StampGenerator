@@ -6,6 +6,11 @@ export interface ConfigPanelProps {
   onChange: (next: StampOptions) => void;
 }
 
+const inputClassName =
+  "mt-1.5 block w-full rounded bg-navy-darkest border border-slate/30 px-3 py-2 text-lightest-slate font-mono text-sm focus:outline-none focus:border-accent transition-colors";
+
+const labelClassName = "block font-mono text-sm text-slate";
+
 export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
   const [designHeightDraft, setDesignHeightDraft] = useState(
     String(value.designHeightMm),
@@ -43,28 +48,38 @@ export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
   }
 
   return (
-    <div>
-      <label>
+    <div className="space-y-5">
+      <label className={labelClassName}>
         Design height (mm)
         <input
           type="number"
           aria-label="Design height (mm)"
           value={designHeightDraft}
           onChange={(event) => handleDesignHeightChange(event.target.value)}
+          className={inputClassName}
         />
       </label>
-      {designHeightError ? <div role="alert">{designHeightError}</div> : null}
+      {designHeightError ? (
+        <div role="alert" className="text-red-400 text-xs font-mono">
+          {designHeightError}
+        </div>
+      ) : null}
 
-      <label>
+      <label className={labelClassName}>
         Base thickness (mm)
         <input
           type="number"
           aria-label="Base thickness (mm)"
           value={baseThicknessDraft}
           onChange={(event) => handleBaseThicknessChange(event.target.value)}
+          className={inputClassName}
         />
       </label>
-      {baseThicknessError ? <div role="alert">{baseThicknessError}</div> : null}
+      {baseThicknessError ? (
+        <div role="alert" className="text-red-400 text-xs font-mono">
+          {baseThicknessError}
+        </div>
+      ) : null}
     </div>
   );
 }

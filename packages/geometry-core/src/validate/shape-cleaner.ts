@@ -10,11 +10,20 @@ import type {
 
 let wasm: ManifoldToplevel | null = null;
 
-export async function initManifold(): Promise<void> {
+export type InitManifoldOptions = {
+  /** Browser bundlers must pass the resolved URL of manifold.wasm. */
+  locateFile?: () => string;
+};
+
+export async function initManifold(
+  options: InitManifoldOptions = {},
+): Promise<void> {
   if (wasm) {
     return;
   }
-  const manifold = await Module();
+  const manifold = await Module(
+    options.locateFile ? { locateFile: options.locateFile } : undefined,
+  );
   manifold.setup();
   wasm = manifold;
 }

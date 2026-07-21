@@ -4,7 +4,6 @@ import {
   BinaryStlExporter,
   FabricCanvasImporter,
   type FabricCanvasLike,
-  initManifold,
   type PathShapeSet,
   type RawPathSet,
   ShapeCleaner,
@@ -18,6 +17,7 @@ import {
 } from "@stamp-generator/geometry-core";
 import { triggerDownload } from "../lib/trigger-download";
 import { ensureBundledFontsLoaded } from "../lib/bundled-fonts";
+import { ensureManifoldReady } from "../lib/manifold-wasm";
 
 export type PipelineState =
   | { status: "idle" }
@@ -36,7 +36,7 @@ export interface UseStampPipeline {
 }
 
 const DEFAULT_RULES = {
-  minFeatureSizeMm: 0.5,
+  minFeatureSizeMm: 0.3,
   maxRingCount: 100,
 };
 
@@ -60,28 +60,50 @@ export function useStampPipeline(): UseStampPipeline {
       flushSync(() => {
         setState({ status: "importing" });
       });
-      await initManifold();
-      const raw = await loadRaw();
+      try {
+        await ensureManifoldReady();
+        const raw = await loadRaw();
 
-      flushSync(() => {
-        setState({ status: "validating" });
-      });
+        flushSync(() => {
+          setState({ status: "validating" });
+        });
 
-      const validator = new ShapeValidator();
-      const rawResult = validator.validateRaw(raw, DEFAULT_RULES);
-      if (!rawResult.ok) {
-        setState({ status: "invalid", issues: rawResult.issues });
-        return;
+        const validator = new ShapeValidator();
+        const rawResult = validator.validateRaw(raw, DEFAULT_RULES);
+        if (!rawResult.ok) {
+          setState({ status: "invalid", issues: rawResult.issues });
+          return;
+        }
+
+        if (raw.rings.length === 0) {
+          setState({
+            status: "invalid",
+            issues: [
+              {
+                code: "EMPTY_DESIGN",
+                message: "Design is empty — add at least one shape",
+              },
+            ],
+          });
+          return;
+        }
+
+        const shapes = new ShapeCleaner().clean(raw);
+        const result = validator.validate(shapes, DEFAULT_RULES);
+        if (!result.ok) {
+          setState({ status: "invalid", issues: result.issues });
+          return;
+        }
+
+        setState({ status: "ready", shapes });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Import failed unexpectedly";
+        setState({
+          status: "invalid",
+          issues: [{ code: "IMPORT_FAILED", message }],
+        });
       }
-
-      const shapes = new ShapeCleaner().clean(raw);
-      const result = validator.validate(shapes, DEFAULT_RULES);
-      if (!result.ok) {
-        setState({ status: "invalid", issues: result.issues });
-        return;
-      }
-
-      setState({ status: "ready", shapes });
     },
     [],
   );

@@ -13,9 +13,11 @@
   },
   "dependencies": {
     "@stamp-generator/geometry-core": "*",
+    "@tailwindcss/vite": "^4.3.3",
     "fabric": "^7.4.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
