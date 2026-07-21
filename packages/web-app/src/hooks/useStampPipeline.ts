@@ -17,6 +17,7 @@ import {
   type ValidationIssue,
 } from "@stamp-generator/geometry-core";
 import { triggerDownload } from "../lib/trigger-download";
+import { ensureBundledFontsLoaded } from "../lib/bundled-fonts";
 
 export type PipelineState =
   | { status: "idle" }
@@ -30,6 +31,7 @@ export interface UseStampPipeline {
   importFromSvg(file: File): void;
   importFromCanvas(canvas: FabricCanvasLike): void;
   importFromText(request: TextImportRequest): void;
+  exportStl(options: StampOptions): Uint8Array | null;
   download(options: StampOptions): void;
 }
 
@@ -105,23 +107,34 @@ export function useStampPipeline(): UseStampPipeline {
 
   const importFromText = useCallback(
     (request: TextImportRequest) => {
-      void processRaw(() =>
-        new TextOutlineImporter().import(request, IMPORT_TOLERANCE),
-      );
+      void processRaw(async () => {
+        await ensureBundledFontsLoaded();
+        return new TextOutlineImporter().import(request, IMPORT_TOLERANCE);
+      });
     },
     [processRaw],
   );
 
-  const download = useCallback(
-    (options: StampOptions) => {
+  const exportStl = useCallback(
+    (options: StampOptions): Uint8Array | null => {
       if (state.status !== "ready") {
-        return;
+        return null;
       }
       const mesh = new StampGeometryBuilder().build(state.shapes, options);
-      const bytes = new BinaryStlExporter().export(mesh);
-      triggerDownload(bytes, "stamp.stl");
+      return new BinaryStlExporter().export(mesh);
     },
     [state],
+  );
+
+  const download = useCallback(
+    (options: StampOptions) => {
+      const bytes = exportStl(options);
+      if (!bytes) {
+        return;
+      }
+      triggerDownload(bytes, "stamp.stl");
+    },
+    [exportStl],
   );
 
   return {
@@ -129,6 +142,7 @@ export function useStampPipeline(): UseStampPipeline {
     importFromSvg,
     importFromCanvas,
     importFromText,
+    exportStl,
     download,
   };
 }

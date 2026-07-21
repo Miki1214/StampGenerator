@@ -1,7 +1,3 @@
-import type {
-  PathShapeSet,
-  ValidationIssue,
-} from "@stamp-generator/geometry-core";
 import { triggerDownload } from "../lib/trigger-download";
 import type { PipelineState } from "../hooks/useStampPipeline";
 
