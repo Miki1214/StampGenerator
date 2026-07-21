@@ -39,4 +39,18 @@ describe("DownloadButton", () => {
         .disabled,
     ).toBe(true);
   });
+
+  it("is enabled when pipeline state is ready", () => {
+    render(
+      <DownloadButton
+        state={{ status: "ready", shapes: [] }}
+        onDownload={vi.fn(() => new Uint8Array([1]))}
+      />,
+    );
+
+    expect(
+      (screen.getByRole("button", { name: /download/i }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
 });
