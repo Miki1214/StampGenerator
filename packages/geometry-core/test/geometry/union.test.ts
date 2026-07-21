@@ -35,6 +35,42 @@ describe("unionMeshes", () => {
     const expectedVolume = meshVolume(base) + meshVolume(design);
     expect(meshVolume(united)).toBeCloseTo(expectedVolume, 5);
   });
+
+  it("unions two overlapping solids into a mesh whose volume is strictly less than the sum of both volumes", () => {
+    const aShapes: PathShapeSet = [
+      {
+        outer: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        },
+        holes: [],
+      },
+    ];
+    const bShapes: PathShapeSet = [
+      {
+        outer: {
+          points: [
+            { x: 5, y: 5 },
+            { x: 15, y: 5 },
+            { x: 15, y: 15 },
+            { x: 5, y: 15 },
+          ],
+        },
+        holes: [],
+      },
+    ];
+    const a = extrudeShapes(aShapes, 5);
+    const b = extrudeShapes(bShapes, 5);
+
+    const united = unionMeshes(a, b);
+
+    const sum = meshVolume(a) + meshVolume(b);
+    expect(meshVolume(united)).toBeLessThan(sum);
+  });
 });
 
 function translateMeshZ(mesh: Mesh, dz: number): Mesh {
