@@ -37,4 +37,29 @@ describe("TextOutlineImporter", () => {
       expect(ring.points.length).toBeGreaterThan(2);
     }
   });
+
+  it("correctly spaces and kerns multi-character strings using the font metrics", () => {
+    const importer = new TextOutlineImporter();
+    const fontSizeMm = 100;
+
+    const pair = importer.import(
+      { text: "AV", fontId: "sans", fontSizeMm },
+      0.2,
+    );
+    const letterA = importer.import(
+      { text: "A", fontId: "sans", fontSizeMm },
+      0.2,
+    );
+    const letterV = importer.import(
+      { text: "V", fontId: "sans", fontSizeMm },
+      0.2,
+    );
+
+    const maxX = (result: { rings: { points: { x: number }[] }[] }) =>
+      Math.max(...result.rings.flatMap((ring) => ring.points).map((p) => p.x));
+
+    // AV is a classic kerning pair: kerned width must be tighter than A+V
+    expect(maxX(pair)).toBeLessThan(maxX(letterA) + maxX(letterV) - 1);
+    expect(maxX(pair)).toBeGreaterThan(maxX(letterA));
+  });
 });

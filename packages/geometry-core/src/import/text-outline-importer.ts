@@ -32,16 +32,27 @@ export class TextOutlineImporter
     }
 
     const font = loadFont(source.fontId);
-    // Place baseline at fontSize so glyph sits roughly in y ∈ [0, fontSize]
-    const path = font.getPath(
-      source.text,
-      0,
-      source.fontSizeMm,
-      source.fontSizeMm,
-      { kerning: true },
-    );
+    const rings: RawPathSet["rings"] = [];
+    const scale = source.fontSizeMm / font.unitsPerEm;
+    let x = 0;
+    let previous: ReturnType<Font["charToGlyph"]> | null = null;
 
-    return { rings: commandsToRings(path.commands, tolerance) };
+    // Manual LTR layout avoids opentype.js GSUB feature gaps on Noto;
+    // kerning still comes from the font's own kern/GPOS metrics.
+    for (const char of source.text) {
+      const glyph = font.charToGlyph(char);
+      if (previous) {
+        x += font.getKerningValue(previous, glyph) * scale;
+      }
+
+      const path = glyph.getPath(x, source.fontSizeMm, source.fontSizeMm);
+      rings.push(...commandsToRings(path.commands, tolerance));
+
+      x += glyph.advanceWidth * scale;
+      previous = glyph;
+    }
+
+    return { rings };
   }
 }
 
