@@ -50,4 +50,21 @@ describe("BinaryStlExporter", () => {
 
     expect(parsed.triangleCount).toBe(mesh.triangleIndices.length / 3);
   });
+
+  it("round-trips face normals matching the mesh-computed normals within a small tolerance", () => {
+    // Right triangle in XY plane: (0,0,0), (1,0,0), (0,1,0) → unit normal (0,0,1).
+    const mesh: Mesh = {
+      vertices: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      triangleIndices: new Uint32Array([0, 1, 2]),
+    };
+
+    const bytes = new BinaryStlExporter().export(mesh);
+    const parsed = parseBinaryStl(bytes);
+
+    expect(parsed.triangles).toHaveLength(1);
+    const [nx, ny, nz] = parsed.triangles[0].normal;
+    expect(nx).toBeCloseTo(0, 5);
+    expect(ny).toBeCloseTo(0, 5);
+    expect(nz).toBeCloseTo(1, 5);
+  });
 });
