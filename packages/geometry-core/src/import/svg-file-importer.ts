@@ -13,11 +13,17 @@ interface Matrix2D {
 const IDENTITY: Matrix2D = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 
 export class SvgFileImporter implements ShapeImporter<string> {
-  import(source: string, _tolerance: number): RawPathSet {
+  import(source: string, tolerance: number): RawPathSet {
     const rings: RawPathSet["rings"] = [];
     walkElements(source, IDENTITY, (tag, attrs, transform) => {
       if (tag === "rect") {
         rings.push({ points: rectPoints(attrs, transform) });
+      } else if (tag === "path" && attrs.d) {
+        for (const points of pathRings(attrs.d, transform, tolerance)) {
+          if (points.length > 0) {
+            rings.push({ points });
+          }
+        }
       }
     });
     return { rings };
@@ -86,6 +92,80 @@ function rectPoints(
     apply(transform, { x: x + width, y: y + height }),
     apply(transform, { x, y: y + height }),
   ];
+}
+
+function pathRings(
+  d: string,
+  transform: Matrix2D,
+  _tolerance: number,
+): Point2D[][] {
+  const rings: Point2D[][] = [];
+  let current: Point2D[] = [];
+  let cursor: Point2D = { x: 0, y: 0 };
+  let start: Point2D = { x: 0, y: 0 };
+
+  const tokens = tokenizePath(d);
+  let i = 0;
+
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (isCommand(token)) {
+      const cmd = token;
+      i += 1;
+      if (cmd === "M" || cmd === "m") {
+        if (current.length > 0) {
+          rings.push(current);
+          current = [];
+        }
+        const abs = cmd === "M";
+        const x = Number(tokens[i++]);
+        const y = Number(tokens[i++]);
+        cursor = abs ? { x, y } : { x: cursor.x + x, y: cursor.y + y };
+        start = cursor;
+        current.push(apply(transform, cursor));
+        // Implicit line-tos after moveto
+        while (i < tokens.length && !isCommand(tokens[i])) {
+          const lx = Number(tokens[i++]);
+          const ly = Number(tokens[i++]);
+          cursor = abs
+            ? { x: lx, y: ly }
+            : { x: cursor.x + lx, y: cursor.y + ly };
+          current.push(apply(transform, cursor));
+        }
+      } else if (cmd === "L" || cmd === "l") {
+        const abs = cmd === "L";
+        while (i < tokens.length && !isCommand(tokens[i])) {
+          const x = Number(tokens[i++]);
+          const y = Number(tokens[i++]);
+          cursor = abs ? { x, y } : { x: cursor.x + x, y: cursor.y + y };
+          current.push(apply(transform, cursor));
+        }
+      } else if (cmd === "Z" || cmd === "z") {
+        cursor = start;
+        // Close without duplicating the start point in the ring
+      } else {
+        // Unsupported command for this step — skip numeric args
+        while (i < tokens.length && !isCommand(tokens[i])) {
+          i += 1;
+        }
+      }
+    } else {
+      i += 1;
+    }
+  }
+
+  if (current.length > 0) {
+    rings.push(current);
+  }
+  return rings;
+}
+
+function tokenizePath(d: string): string[] {
+  return d.match(/[MmLlHhVvCcSsQqTtAaZz]|-?\d*\.?\d+(?:e[-+]?\d+)?/gi) ?? [];
+}
+
+function isCommand(token: string): boolean {
+  return /^[MmLlHhVvCcSsQqTtAaZz]$/.test(token);
 }
 
 function parseAttributes(attributeText: string): Record<string, string> {
