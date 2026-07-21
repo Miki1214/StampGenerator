@@ -6,3 +6,4 @@ export type {
   ShapeImporter,
 } from "./import/types";
 export { flattenArc, flattenCubicBezier } from "./import/curve-flatten";
+export { SvgFileImporter } from "./import/svg-file-importer";
