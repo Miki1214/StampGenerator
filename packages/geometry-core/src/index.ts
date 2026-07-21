@@ -29,4 +29,5 @@ export { mirrorShapes } from "./geometry/mirror";
 export { scaleToMm } from "./geometry/scale";
 export { extrudeShapes } from "./geometry/extrude";
 export { buildBasePlate } from "./geometry/base-plate";
+export { unionMeshes } from "./geometry/union";
 export type { Mesh, StampOptions } from "./geometry/types";
