@@ -18,4 +18,23 @@ describe("SvgFileImporter", () => {
       { x: 10, y: 60 },
     ]);
   });
+
+  it("resolves a nested g translate into absolute coordinates", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(5, 10)">
+        <rect x="1" y="2" width="3" height="4" />
+      </g>
+    </svg>`;
+
+    const importer = new SvgFileImporter();
+    const result = importer.import(svg, 0.1);
+
+    expect(result.rings).toHaveLength(1);
+    expect(result.rings[0].points).toEqual([
+      { x: 6, y: 12 },
+      { x: 9, y: 12 },
+      { x: 9, y: 16 },
+      { x: 6, y: 16 },
+    ]);
+  });
 });
