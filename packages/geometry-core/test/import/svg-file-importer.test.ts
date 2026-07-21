@@ -54,4 +54,35 @@ describe("SvgFileImporter", () => {
       { x: 25, y: 25 },
     ]);
   });
+
+  it("flattens a path containing cubic beziers within the given tolerance", () => {
+    // Cubic from (0,0) to (1,0) with control points (0,1) and (1,1)
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+      <path d="M 0 0 C 0 1 1 1 1 0" />
+    </svg>`;
+    const tolerance = 0.05;
+
+    const importer = new SvgFileImporter();
+    const result = importer.import(svg, tolerance);
+
+    expect(result.rings).toHaveLength(1);
+    const points = result.rings[0].points;
+    expect(points.length).toBeGreaterThan(2);
+    expect(points[0]).toEqual({ x: 0, y: 0 });
+    expect(points[points.length - 1]).toEqual({ x: 1, y: 0 });
+
+    // Every segment chord's control-point deviation is covered by reusing
+    // flattenCubicBezier; verify sample points stay near the true curve
+    // by checking y is within [0, 1] and endpoints match.
+    for (const point of points) {
+      expect(point.x).toBeGreaterThanOrEqual(-tolerance);
+      expect(point.x).toBeLessThanOrEqual(1 + tolerance);
+      expect(point.y).toBeGreaterThanOrEqual(-tolerance);
+      expect(point.y).toBeLessThanOrEqual(1 + tolerance);
+    }
+
+    // Tighter tolerance must produce a denser polyline than a coarse one
+    const coarse = importer.import(svg, 0.5).rings[0].points;
+    expect(points.length).toBeGreaterThan(coarse.length);
+  });
 });

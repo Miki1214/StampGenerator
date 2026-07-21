@@ -1,4 +1,5 @@
 import type { Point2D, RawPathSet, ShapeImporter } from "./types";
+import { flattenCubicBezier } from "./curve-flatten";
 
 /** 2D affine transform: [a c e; b d f; 0 0 1] */
 interface Matrix2D {
@@ -97,7 +98,7 @@ function rectPoints(
 function pathRings(
   d: string,
   transform: Matrix2D,
-  _tolerance: number,
+  tolerance: number,
 ): Point2D[][] {
   const rings: Point2D[][] = [];
   let current: Point2D[] = [];
@@ -123,7 +124,6 @@ function pathRings(
         cursor = abs ? { x, y } : { x: cursor.x + x, y: cursor.y + y };
         start = cursor;
         current.push(apply(transform, cursor));
-        // Implicit line-tos after moveto
         while (i < tokens.length && !isCommand(tokens[i])) {
           const lx = Number(tokens[i++]);
           const ly = Number(tokens[i++]);
@@ -140,11 +140,34 @@ function pathRings(
           cursor = abs ? { x, y } : { x: cursor.x + x, y: cursor.y + y };
           current.push(apply(transform, cursor));
         }
+      } else if (cmd === "C" || cmd === "c") {
+        const abs = cmd === "C";
+        while (i < tokens.length && !isCommand(tokens[i])) {
+          const x1 = Number(tokens[i++]);
+          const y1 = Number(tokens[i++]);
+          const x2 = Number(tokens[i++]);
+          const y2 = Number(tokens[i++]);
+          const x = Number(tokens[i++]);
+          const y = Number(tokens[i++]);
+          const c1 = abs
+            ? { x: x1, y: y1 }
+            : { x: cursor.x + x1, y: cursor.y + y1 };
+          const c2 = abs
+            ? { x: x2, y: y2 }
+            : { x: cursor.x + x2, y: cursor.y + y2 };
+          const end = abs
+            ? { x, y }
+            : { x: cursor.x + x, y: cursor.y + y };
+          const flattened = flattenCubicBezier(cursor, c1, c2, end, tolerance);
+          // Skip the first point — already present as current cursor
+          for (let j = 1; j < flattened.length; j++) {
+            current.push(apply(transform, flattened[j]));
+          }
+          cursor = end;
+        }
       } else if (cmd === "Z" || cmd === "z") {
         cursor = start;
-        // Close without duplicating the start point in the ring
       } else {
-        // Unsupported command for this step — skip numeric args
         while (i < tokens.length && !isCommand(tokens[i])) {
           i += 1;
         }
