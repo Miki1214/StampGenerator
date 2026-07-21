@@ -15,7 +15,7 @@ export {
   type FabricStrokeLike,
 } from "./import/fabric-canvas-importer";
 export { TextOutlineImporter } from "./import/text-outline-importer";
-export { initManifold, ShapeCleaner } from "./validate/shape-cleaner";
+export { initManifold, getManifold, ShapeCleaner } from "./validate/shape-cleaner";
 export { ShapeValidator } from "./validate/shape-validator";
 export type {
   PathShapeSet,
@@ -27,4 +27,5 @@ export type {
 } from "./validate/types";
 export { mirrorShapes } from "./geometry/mirror";
 export { scaleToMm } from "./geometry/scale";
+export { extrudeShapes } from "./geometry/extrude";
 export type { Mesh, StampOptions } from "./geometry/types";

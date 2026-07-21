@@ -19,6 +19,13 @@ export async function initManifold(): Promise<void> {
   wasm = manifold;
 }
 
+export function getManifold(): ManifoldToplevel {
+  if (!wasm) {
+    throw new Error("Manifold not initialized; call initManifold() first");
+  }
+  return wasm;
+}
+
 export class ShapeCleaner implements ShapeCleanerContract {
   clean(raw: RawPathSet): PathShapeSet {
     if (!wasm) {
