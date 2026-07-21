@@ -10,7 +10,8 @@ export interface FabricCanvasLike {
 }
 
 export class FabricCanvasImporter implements ShapeImporter<FabricCanvasLike> {
-  import(source: FabricCanvasLike, _tolerance: number): RawPathSet {
+  import(source: FabricCanvasLike, tolerance: number): RawPathSet {
+    void tolerance;
     const rings = source
       .getObjects()
       .filter((obj) => obj.points && obj.points.length > 0)

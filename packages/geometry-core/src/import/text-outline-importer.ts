@@ -48,7 +48,7 @@ export class TextOutlineImporter
       const path = glyph.getPath(x, source.fontSizeMm, source.fontSizeMm);
       rings.push(...commandsToRings(path.commands, tolerance));
 
-      x += glyph.advanceWidth * scale;
+      x += (glyph.advanceWidth ?? 0) * scale;
       previous = glyph;
     }
 
