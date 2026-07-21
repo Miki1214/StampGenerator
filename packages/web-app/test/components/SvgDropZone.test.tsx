@@ -21,4 +21,20 @@ describe("SvgDropZone", () => {
       expect(onImport).toHaveBeenCalledWith(svgText);
     });
   });
+
+  it("rejects non-.svg file drops with a visible message without calling the import callback", async () => {
+    const onImport = vi.fn();
+
+    render(<SvgDropZone onImport={onImport} />);
+
+    const dropZone = screen.getByRole("region", { name: /svg drop/i });
+    const file = new File(["not an svg"], "notes.txt", { type: "text/plain" });
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [file] },
+    });
+
+    expect(screen.getByRole("alert").textContent).toMatch(/svg/i);
+    expect(onImport).not.toHaveBeenCalled();
+  });
 });
