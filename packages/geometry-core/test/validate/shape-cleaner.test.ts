@@ -45,6 +45,18 @@ describe("ShapeCleaner", () => {
     expect(shapes).toHaveLength(1);
     expect(signedArea(shapes[0].outer.points)).toBeGreaterThan(0);
   });
+
+  it("treats a fully enclosed ring as a hole rather than a separate island", () => {
+    const raw = loadFixture("letter-o-hole.json");
+    const cleaner = new ShapeCleaner();
+
+    const shapes = cleaner.clean(raw);
+
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0].holes).toHaveLength(1);
+    expect(signedArea(shapes[0].outer.points)).toBeGreaterThan(0);
+    expect(signedArea(shapes[0].holes[0].points)).toBeLessThan(0);
+  });
 });
 
 /** Positive signed area => counter-clockwise (CCW) winding. */
