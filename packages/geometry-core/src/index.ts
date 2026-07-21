@@ -15,3 +15,13 @@ export {
   type FabricStrokeLike,
 } from "./import/fabric-canvas-importer";
 export { TextOutlineImporter } from "./import/text-outline-importer";
+export { initManifold, ShapeCleaner } from "./validate/shape-cleaner";
+export type {
+  PathShapeSet,
+  PolygonWithHoles,
+  Ring,
+  ShapeValidator,
+  ValidationIssue,
+  ValidationResult,
+  ValidationRules,
+} from "./validate/types";
