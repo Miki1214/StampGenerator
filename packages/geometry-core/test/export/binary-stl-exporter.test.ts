@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Mesh } from "../../src/geometry/types";
 import { BinaryStlExporter } from "../../src/export/binary-stl-exporter";
+import { parseBinaryStl } from "./stl-test-reader";
 
 describe("BinaryStlExporter", () => {
   it("exports a single-triangle mesh as an 80-byte header, little-endian count of 1, and one 50-byte triangle record", () => {
@@ -34,5 +35,19 @@ describe("BinaryStlExporter", () => {
 
     const triangleCount = mesh.triangleIndices.length / 3;
     expect(bytes.byteLength).toBe(84 + 50 * triangleCount);
+  });
+
+  it("round-trips triangle count through the binary STL reader matching the input mesh", () => {
+    const mesh: Mesh = {
+      vertices: new Float32Array([
+        0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0,
+      ]),
+      triangleIndices: new Uint32Array([0, 1, 2, 1, 3, 2]),
+    };
+
+    const bytes = new BinaryStlExporter().export(mesh);
+    const parsed = parseBinaryStl(bytes);
+
+    expect(parsed.triangleCount).toBe(mesh.triangleIndices.length / 3);
   });
 });
