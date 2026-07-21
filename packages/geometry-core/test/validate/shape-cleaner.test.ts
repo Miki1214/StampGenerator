@@ -35,4 +35,25 @@ describe("ShapeCleaner", () => {
     expect(Math.min(...ys)).toBeCloseTo(0);
     expect(Math.max(...ys)).toBeCloseTo(15);
   });
+
+  it("corrects a clockwise outer ring to counter-clockwise winding", () => {
+    const raw = loadFixture("reversed-winding.json");
+    const cleaner = new ShapeCleaner();
+
+    const shapes = cleaner.clean(raw);
+
+    expect(shapes).toHaveLength(1);
+    expect(signedArea(shapes[0].outer.points)).toBeGreaterThan(0);
+  });
 });
+
+/** Positive signed area => counter-clockwise (CCW) winding. */
+function signedArea(points: { x: number; y: number }[]): number {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  return area / 2;
+}
