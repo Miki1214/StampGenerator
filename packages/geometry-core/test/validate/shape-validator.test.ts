@@ -34,4 +34,20 @@ describe("ShapeValidator", () => {
     expect(result.issues[0].message.length).toBeGreaterThan(0);
     expect(result.issues[0].message).toMatch(/0\.5/);
   });
+
+  it("rejects an empty design with an empty-design issue instead of throwing", () => {
+    const validator = new ShapeValidator();
+    const result = validator.validate([], {
+      minFeatureSizeMm: 0.5,
+      maxRingCount: 100,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0].code).toMatch(/empty/i);
+    expect(result.issues[0].message).toMatch(/empty/i);
+  });
 });

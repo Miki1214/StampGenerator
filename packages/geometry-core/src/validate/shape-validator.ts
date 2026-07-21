@@ -11,6 +11,18 @@ export class ShapeValidator implements ShapeValidatorContract {
   validate(shapes: PathShapeSet, rules: ValidationRules): ValidationResult {
     const issues: ValidationIssue[] = [];
 
+    if (shapes.length === 0) {
+      return {
+        ok: false,
+        issues: [
+          {
+            code: "EMPTY_DESIGN",
+            message: "Design is empty — add at least one shape",
+          },
+        ],
+      };
+    }
+
     for (const shape of shapes) {
       const minDimension = minAabbDimension(shape.outer.points);
       if (minDimension < rules.minFeatureSizeMm) {
