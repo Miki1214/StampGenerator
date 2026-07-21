@@ -1,6 +1,7 @@
 import type { Vec2 } from "manifold-3d";
 import type { PathShapeSet } from "../validate/types";
 import { getManifold } from "../validate/shape-cleaner";
+import { meshFromManifold } from "./mesh-from-manifold";
 import type { Mesh } from "./types";
 
 export function extrudeShapes(shapes: PathShapeSet, heightMm: number): Mesh {
@@ -18,35 +19,11 @@ export function extrudeShapes(shapes: PathShapeSet, heightMm: number): Mesh {
   try {
     const solid = wasm.Manifold.extrude(crossSection, heightMm);
     try {
-      const manifoldMesh = solid.getMesh();
-      return meshFromManifold(manifoldMesh);
+      return meshFromManifold(solid.getMesh());
     } finally {
       solid.delete();
     }
   } finally {
     crossSection.delete();
   }
-}
-
-function meshFromManifold(manifoldMesh: {
-  numProp: number;
-  vertProperties: Float32Array;
-  triVerts: Uint32Array;
-}): Mesh {
-  const { numProp, vertProperties, triVerts } = manifoldMesh;
-  const vertexCount = vertProperties.length / numProp;
-  const vertices = new Float32Array(vertexCount * 3);
-
-  for (let i = 0; i < vertexCount; i++) {
-    const src = i * numProp;
-    const dst = i * 3;
-    vertices[dst] = vertProperties[src];
-    vertices[dst + 1] = vertProperties[src + 1];
-    vertices[dst + 2] = vertProperties[src + 2];
-  }
-
-  return {
-    vertices,
-    triangleIndices: new Uint32Array(triVerts),
-  };
 }
