@@ -31,4 +31,6 @@ export interface ShapeCleaner {
 
 export interface ShapeValidator {
   validate(shapes: PathShapeSet, rules: ValidationRules): ValidationResult;
+  /** Fail-fast checks on raw input before expensive cleanup. */
+  validateRaw(raw: RawPathSet, rules: ValidationRules): ValidationResult;
 }

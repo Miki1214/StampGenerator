@@ -1,4 +1,4 @@
-import type { Point2D } from "../import/types";
+import type { Point2D, RawPathSet } from "../import/types";
 import type {
   PathShapeSet,
   ShapeValidator as ShapeValidatorContract,
@@ -8,6 +8,21 @@ import type {
 } from "./types";
 
 export class ShapeValidator implements ShapeValidatorContract {
+  validateRaw(raw: RawPathSet, rules: ValidationRules): ValidationResult {
+    if (raw.rings.length > rules.maxRingCount) {
+      return {
+        ok: false,
+        issues: [
+          {
+            code: "MAX_RING_COUNT_EXCEEDED",
+            message: `Design has ${raw.rings.length} rings, which exceeds the maximum of ${rules.maxRingCount}`,
+          },
+        ],
+      };
+    }
+    return { ok: true };
+  }
+
   validate(shapes: PathShapeSet, rules: ValidationRules): ValidationResult {
     const issues: ValidationIssue[] = [];
 
