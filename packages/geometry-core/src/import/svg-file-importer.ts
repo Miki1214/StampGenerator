@@ -15,6 +15,12 @@ const IDENTITY: Matrix2D = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 
 export class SvgFileImporter implements ShapeImporter<string> {
   import(source: string, tolerance: number): RawPathSet {
+    if (!/<svg\b/i.test(source)) {
+      throw new Error(
+        "Malformed SVG input: expected a document containing an <svg> root element.",
+      );
+    }
+
     const rings: RawPathSet["rings"] = [];
     walkElements(source, IDENTITY, (tag, attrs, transform) => {
       if (tag === "rect") {

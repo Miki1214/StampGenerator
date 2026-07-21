@@ -85,4 +85,12 @@ describe("SvgFileImporter", () => {
     const coarse = importer.import(svg, 0.5).rings[0].points;
     expect(points.length).toBeGreaterThan(coarse.length);
   });
+
+  it("throws a descriptive error for malformed SVG input instead of returning empty rings", () => {
+    const importer = new SvgFileImporter();
+
+    expect(() => importer.import("not svg at all", 0.1)).toThrow(
+      /malformed|invalid|svg/i,
+    );
+  });
 });
