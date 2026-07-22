@@ -2,10 +2,7 @@ import type { PathShapeSet } from "../validate/types";
 import { extrudeShapes } from "./extrude";
 import { getMeshBoundingBox, translateMesh, translateMeshZ } from "./mesh-bounds";
 import { mirrorShapes } from "./mirror";
-import {
-  BASE_DESIGN_PADDING_MM,
-  scaleBaseMeshToFootprint,
-} from "./scale-base";
+import { scaleBaseMeshToFootprint } from "./scale-base";
 import { scaleToMm } from "./scale";
 import { getStampHardwareMesh } from "./stamp-hardware";
 import type {
@@ -22,14 +19,11 @@ export class StampGeometryBuilder implements StampGeometryBuilderContract {
     const design = extrudeShapes(mirrored, opts.designHeightMm);
     const designBox = getMeshBoundingBox(design);
 
-    // Size the base to the drawn design's footprint plus padding on each side.
-    const designWidthMm = designBox.maxX - designBox.minX;
-    const designDepthMm = designBox.maxY - designBox.minY;
-    const padding = BASE_DESIGN_PADDING_MM * 2;
+    // Size the base to the configured stamp canvas footprint.
     const base = scaleBaseMeshToFootprint(
       getStampHardwareMesh("base"),
-      designWidthMm + padding,
-      designDepthMm + padding,
+      opts.canvasSizeMm,
+      opts.canvasSizeMm,
     );
     const handle = getStampHardwareMesh("handle");
 

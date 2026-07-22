@@ -6,13 +6,16 @@ import type {
   Point2D,
 } from "@stamp-generator/geometry-core";
 import { strokeToOutline } from "../lib/stroke-outline";
+import { DRAWING_CANVAS_SIZE_PX } from "../lib/drawing-canvas";
+import { StampSizeSelector } from "./StampSizeSelector";
+import type { StampCanvasSizeMm } from "@stamp-generator/geometry-core";
 
 export interface DrawingCanvasProps {
   onImport: (canvas: FabricCanvasLike) => void;
+  canvasSizeMm: number;
+  onCanvasSizeChange: (sizeMm: StampCanvasSizeMm) => void;
 }
 
-const CANVAS_WIDTH = 400;
-const CANVAS_HEIGHT = 300;
 const BRUSH_WIDTH = 8;
 
 /** Test-only access to the live Fabric canvas (StrictMode-safe mount). */
@@ -83,7 +86,11 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
   };
 }
 
-export function DrawingCanvas({ onImport }: DrawingCanvasProps) {
+export function DrawingCanvas({
+  onImport,
+  canvasSizeMm,
+  onCanvasSizeChange,
+}: DrawingCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
 
@@ -102,8 +109,8 @@ export function DrawingCanvas({ onImport }: DrawingCanvasProps) {
 
     const canvas = new Canvas(canvasEl, {
       isDrawingMode: true,
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
+      width: DRAWING_CANVAS_SIZE_PX,
+      height: DRAWING_CANVAS_SIZE_PX,
       backgroundColor: "#ffffff",
     });
     const brush = new PencilBrush(canvas);
@@ -175,6 +182,10 @@ export function DrawingCanvas({ onImport }: DrawingCanvasProps) {
 
   return (
     <div className="space-y-4">
+      <StampSizeSelector
+        value={canvasSizeMm}
+        onChange={onCanvasSizeChange}
+      />
       <div
         ref={containerRef}
         className="inline-block overflow-hidden rounded border border-slate/30 bg-white"

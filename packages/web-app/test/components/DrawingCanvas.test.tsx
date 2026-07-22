@@ -11,7 +11,13 @@ describe("DrawingCanvas", () => {
   it("calls onImport with a FabricCanvasLike when the import drawing control is clicked", () => {
     const onImport = vi.fn();
 
-    render(<DrawingCanvas onImport={onImport} />);
+    render(
+      <DrawingCanvas
+        onImport={onImport}
+        canvasSizeMm={50}
+        onCanvasSizeChange={() => {}}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /import drawing/i }));
 
@@ -30,7 +36,11 @@ describe("DrawingCanvas", () => {
 
     render(
       <StrictMode>
-        <DrawingCanvas onImport={onImport} />
+        <DrawingCanvas
+          onImport={onImport}
+          canvasSizeMm={50}
+          onCanvasSizeChange={() => {}}
+        />
       </StrictMode>,
     );
 

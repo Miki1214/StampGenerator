@@ -168,7 +168,7 @@ describe("StampGeometryBuilder", () => {
     );
   });
 
-  it("sizes the base to the drawn design footprint plus 3 mm padding on each side", () => {
+  it("sizes the base to the configured canvas size", () => {
     const shapes: PathShapeSet = [
       {
         outer: {
@@ -189,44 +189,14 @@ describe("StampGeometryBuilder", () => {
     };
 
     const mesh = new StampGeometryBuilder().build(shapes, opts);
+    const box = getMeshBoundingBox(mesh);
 
-    // Design is 40x40 mm at this scale; base should be 46x46 (3 mm per side).
-    const designVertices: { x: number; y: number }[] = [];
-    for (let i = 0; i < mesh.vertices.length; i += 3) {
-      if (mesh.vertices[i + 2] <= 1e-3) {
-        designVertices.push({
-          x: mesh.vertices[i],
-          y: mesh.vertices[i + 1],
-        });
-      }
-    }
-    const designMinX = Math.min(...designVertices.map((p) => p.x));
-    const designMaxX = Math.max(...designVertices.map((p) => p.x));
-    const designMinY = Math.min(...designVertices.map((p) => p.y));
-    const designMaxY = Math.max(...designVertices.map((p) => p.y));
-
-    const baseBottomVertices: { x: number; y: number }[] = [];
-    for (let i = 0; i < mesh.vertices.length; i += 3) {
-      const z = mesh.vertices[i + 2];
-      if (z >= opts.designHeightMm - 1e-3 && z <= opts.designHeightMm + 1e-3) {
-        baseBottomVertices.push({
-          x: mesh.vertices[i],
-          y: mesh.vertices[i + 1],
-        });
-      }
-    }
-    const baseMinX = Math.min(...baseBottomVertices.map((p) => p.x));
-    const baseMaxX = Math.max(...baseBottomVertices.map((p) => p.x));
-    const baseMinY = Math.min(...baseBottomVertices.map((p) => p.y));
-    const baseMaxY = Math.max(...baseBottomVertices.map((p) => p.y));
-
-    expect(baseMinX).toBeCloseTo(designMinX - 3, 0);
-    expect(baseMaxX).toBeCloseTo(designMaxX + 3, 0);
-    expect(baseMinY).toBeCloseTo(designMinY - 3, 0);
-    expect(baseMaxY).toBeCloseTo(designMaxY + 3, 0);
+    // Base follows the 100 mm canvas, not the smaller 40 mm design footprint.
+    expect(box.maxX - box.minX).toBeGreaterThanOrEqual(95);
+    expect(box.maxY - box.minY).toBeGreaterThanOrEqual(95);
   });
 
-  it("sizes the base to the drawn design's actual footprint, not the configured canvas size", () => {
+  it("sizes the base to the configured canvas size even when the design is smaller", () => {
     // The design only fills a 40x40mm corner of a much larger 100x100mm
     // canvas - the base must follow the design's real 40x40 footprint, not
     // canvasSizeMm=100.
@@ -252,13 +222,9 @@ describe("StampGeometryBuilder", () => {
     const mesh = new StampGeometryBuilder().build(shapes, opts);
     const box = getMeshBoundingBox(mesh);
 
-    // The base (and the whole assembly) should track the 40mm design, well
-    // short of the full 100mm canvas.
-    expect(box.maxX - box.minX).toBeLessThan(60);
-    expect(box.maxY - box.minY).toBeLessThan(60);
-    // ...but still grown well past the base's native 25mm, since 40 > 25.
-    expect(box.maxX - box.minX).toBeGreaterThan(35);
-    expect(box.maxY - box.minY).toBeGreaterThan(35);
+    // The base should match the full 100 mm canvas, not the 40 mm design.
+    expect(box.maxX - box.minX).toBeGreaterThanOrEqual(95);
+    expect(box.maxY - box.minY).toBeGreaterThanOrEqual(95);
   });
 
   it("mirrors an asymmetric L-shape so the tall stem ends up on the opposite side of the plate", () => {

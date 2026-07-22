@@ -54,6 +54,10 @@ export {
 } from "./geometry/stamp-hardware";
 export { unionMeshes } from "./geometry/union";
 export { StampGeometryBuilder } from "./geometry/stamp-geometry-builder";
+export {
+  STAMP_CANVAS_SIZES_MM,
+  type StampCanvasSizeMm,
+} from "./geometry/types";
 export type { Mesh, StampOptions } from "./geometry/types";
 export {
   BinaryStlExporter,

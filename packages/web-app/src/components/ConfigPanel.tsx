@@ -49,9 +49,9 @@ export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
       ) : null}
 
       <p className="font-mono text-xs text-slate leading-relaxed">
-        The base and handle are a fixed 3D model: the base is stretched in X/Y
-        to fit your design (never smaller than its original size) and the
-        handle is joined on top unchanged.
+        The base is stretched in X/Y to match the selected stamp size (never
+        smaller than its original size) and the handle is joined on top
+        unchanged.
       </p>
     </div>
   );

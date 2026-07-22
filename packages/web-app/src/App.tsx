@@ -12,10 +12,11 @@ import { SvgDropZone } from "./components/SvgDropZone";
 import { TextInputPanel } from "./components/TextInputPanel";
 import { ValidationMessages } from "./components/ValidationMessages";
 import { useStampPipeline } from "./hooks/useStampPipeline";
+import { DRAWING_CANVAS_SIZE_PX } from "./lib/drawing-canvas";
 
 const DEFAULT_OPTIONS: StampOptions = {
   designHeightMm: 2,
-  canvasSizeUnits: 100,
+  canvasSizeUnits: DRAWING_CANVAS_SIZE_PX,
   canvasSizeMm: 50,
 };
 
@@ -42,7 +43,16 @@ export function App() {
             <InputModeTabs active={activeTab} onSelect={setActiveTab} />
             <div className="mt-6">
               {activeTab === "draw" ? (
-                <DrawingCanvas onImport={pipeline.importFromCanvas} />
+                <DrawingCanvas
+                  onImport={pipeline.importFromCanvas}
+                  canvasSizeMm={options.canvasSizeMm}
+                  onCanvasSizeChange={(sizeMm) =>
+                    setOptions((current) => ({
+                      ...current,
+                      canvasSizeMm: sizeMm,
+                    }))
+                  }
+                />
               ) : null}
               {activeTab === "svg" ? (
                 <SvgDropZone
