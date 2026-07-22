@@ -18,12 +18,6 @@ export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
   const [designHeightError, setDesignHeightError] = useState<string | null>(
     null,
   );
-  const [baseThicknessDraft, setBaseThicknessDraft] = useState(
-    String(value.baseThicknessMm),
-  );
-  const [baseThicknessError, setBaseThicknessError] = useState<string | null>(
-    null,
-  );
 
   function handleDesignHeightChange(raw: string) {
     setDesignHeightDraft(raw);
@@ -34,17 +28,6 @@ export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
     }
     setDesignHeightError(null);
     onChange({ ...value, designHeightMm: next });
-  }
-
-  function handleBaseThicknessChange(raw: string) {
-    setBaseThicknessDraft(raw);
-    const next = Number(raw);
-    if (!Number.isFinite(next) || next <= 0) {
-      setBaseThicknessError("Base thickness must be greater than zero");
-      return;
-    }
-    setBaseThicknessError(null);
-    onChange({ ...value, baseThicknessMm: next });
   }
 
   return (
@@ -65,21 +48,11 @@ export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
         </div>
       ) : null}
 
-      <label className={labelClassName}>
-        Base thickness (mm)
-        <input
-          type="number"
-          aria-label="Base thickness (mm)"
-          value={baseThicknessDraft}
-          onChange={(event) => handleBaseThicknessChange(event.target.value)}
-          className={inputClassName}
-        />
-      </label>
-      {baseThicknessError ? (
-        <div role="alert" className="text-red-400 text-xs font-mono">
-          {baseThicknessError}
-        </div>
-      ) : null}
+      <p className="font-mono text-xs text-slate leading-relaxed">
+        The base and handle are a fixed 3D model: the base is stretched in X/Y
+        to fit your design (never smaller than its original size) and the
+        handle is joined on top unchanged.
+      </p>
     </div>
   );
 }

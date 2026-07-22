@@ -10,10 +10,10 @@ replacing - the unit-level TDD suite from Phases 1-5.
 
 ## Scenarios
 
-- [ ] Draw a simple closed shape on the canvas, keep default
-      `designHeightMm`/`baseThicknessMm`, download an STL, and assert the
-      downloaded file is non-empty and starts with a valid 80-byte binary STL
-      header followed by a plausible triangle count.
+- [ ] Draw a simple closed shape on the canvas, keep the default
+      `designHeightMm`, download an STL, and assert the downloaded file is
+      non-empty and starts with a valid 80-byte binary STL header followed by
+      a plausible triangle count.
 - [ ] Drop a clean sample SVG (a solid letter shape) and download; verify the
       resulting STL's triangle count falls within an expected range for that
       fixture.
@@ -22,7 +22,7 @@ replacing - the unit-level TDD suite from Phases 1-5.
       expected issue text, and that `DownloadButton` stays disabled.
 - [ ] Type text using a bundled font, download, and verify a non-empty,
       valid STL is produced.
-- [ ] Adjust `designHeightMm` and `baseThicknessMm` in `ConfigPanel` and
+- [ ] Adjust `designHeightMm` in `ConfigPanel` and draw a larger design and
       confirm the resulting STL's parsed bounding box changes accordingly
       (parse the downloaded file bytes within the test, reusing the same
       test-only STL reader introduced in

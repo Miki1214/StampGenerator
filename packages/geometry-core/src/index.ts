@@ -33,7 +33,25 @@ export type {
 export { mirrorShapes } from "./geometry/mirror";
 export { scaleToMm } from "./geometry/scale";
 export { extrudeShapes } from "./geometry/extrude";
-export { buildBasePlate } from "./geometry/base-plate";
+export {
+  BASE_DESIGN_PADDING_MM,
+  scaleBaseMeshToFootprint,
+} from "./geometry/scale-base";
+export {
+  getMeshBoundingBox,
+  translateMesh,
+  translateMeshZ,
+  scaleMeshXY,
+  type MeshBoundingBox,
+} from "./geometry/mesh-bounds";
+export { parseBinaryStl } from "./geometry/stl-mesh-importer";
+export {
+  STAMP_HARDWARE_FILES,
+  setStampHardwareDataProvider,
+  getStampHardwareMesh,
+  type StampHardwarePart,
+  type StampHardwareDataProvider,
+} from "./geometry/stamp-hardware";
 export { unionMeshes } from "./geometry/union";
 export { StampGeometryBuilder } from "./geometry/stamp-geometry-builder";
 export type { Mesh, StampOptions } from "./geometry/types";

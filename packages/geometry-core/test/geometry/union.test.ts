@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { initManifold } from "../../src/validate/shape-cleaner";
-import { buildBasePlate } from "../../src/geometry/base-plate";
 import { extrudeShapes } from "../../src/geometry/extrude";
 import { unionMeshes } from "../../src/geometry/union";
 import type { Mesh } from "../../src/geometry/types";
@@ -12,7 +11,20 @@ describe("unionMeshes", () => {
   });
 
   it("unions a design solid fully above a base plate into a mesh whose volume equals the sum of both volumes", () => {
-    const base = buildBasePlate(20, 3);
+    const baseShapes: PathShapeSet = [
+      {
+        outer: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 20, y: 0 },
+            { x: 20, y: 20 },
+            { x: 0, y: 20 },
+          ],
+        },
+        holes: [],
+      },
+    ];
+    const base = extrudeShapes(baseShapes, 3);
     // Design square sitting in XY on the plate footprint, extruded to height 2.
     // Translate it in Z so it rests exactly on top of the base (z = 3..5).
     const designShapes: PathShapeSet = [

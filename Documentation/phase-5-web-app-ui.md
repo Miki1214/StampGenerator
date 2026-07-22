@@ -13,8 +13,8 @@ preview, per the original project scope.
 - `DrawingCanvas` - Fabric.js freehand drawing surface.
 - `SvgDropZone` - drag-and-drop / file-picker for `.svg` files.
 - `TextInputPanel` - text input + bundled-font picker + size input.
-- `ConfigPanel` - `designHeightMm`, `baseThicknessMm`, canvas size/mm mapping
-  inputs.
+- `ConfigPanel` - `designHeightMm` and canvas size/mm mapping inputs. The
+  base/handle are a fixed STL model, not user-configurable dimensions.
 - `ValidationMessages` - renders the `ValidationResult` issues produced by
   [Phase 2](phase-2-cleanup-validation.md).
 - `DownloadButton` - disabled until a valid `PathShapeSet` exists; triggers
@@ -72,8 +72,6 @@ packages/web-app/test/hooks/
 
 - [ ] `ConfigPanel` rejects a negative `designHeightMm` input with an inline
       error and does not propagate the invalid value upward.
-- [ ] `ConfigPanel` rejects a `baseThicknessMm` of zero or below with an
-      inline error.
 - [ ] `SvgDropZone` calls its import callback with the dropped file's raw
       text contents on drop.
 - [ ] `SvgDropZone` rejects non-`.svg` file drops with a visible message,
@@ -99,7 +97,7 @@ packages/web-app/test/hooks/
 
 A user can:
 - draw a shape on the canvas, or drop an SVG, or type text,
-- configure `designHeightMm` / `baseThicknessMm`,
+- configure `designHeightMm`,
 - see validation feedback if the input is invalid,
 - click download and receive a `.stl` file,
 

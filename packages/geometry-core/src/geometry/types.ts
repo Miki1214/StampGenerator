@@ -2,7 +2,6 @@ import type { PathShapeSet } from "../validate/types";
 
 export interface StampOptions {
   designHeightMm: number;
-  baseThicknessMm: number;
   canvasSizeUnits: number;
   canvasSizeMm: number;
 }

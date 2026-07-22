@@ -7,8 +7,8 @@ lets a user create a real, physical rubber-stamp design and download it as a
 3D-printable STL file. Input can be a freehand drawing on a canvas, a dropped
 SVG file, or typed text rendered with a bundled font. The app validates and
 cleans up the input geometry, generates a true stamp-negative 3D model
-(mirrored raised design fused to a base plate), and triggers a direct
-download - there is no live 3D preview in v1.
+(mirrored raised design joined to a static base+handle STL model), and
+triggers a direct download - there is no live 3D preview in v1.
 
 This documentation set is organized as one file per delivery phase, plus this
 index. Each phase document is a full spec: goals, module/interface contracts,
@@ -24,9 +24,11 @@ original technical feasibility analysis that this plan builds on.
 - **Architecture**: fully client-side SPA, no backend. Hosted on Azure Static
   Web Apps.
 - **Persistence**: none - stateless, no user accounts, no server-side storage.
-- **v1 geometry scope**: true stamp negative (mirrored raised design + base
-  plate, boolean-unioned into a single watertight mesh) - not a flat
-  extrusion.
+- **v1 geometry scope**: true stamp negative (mirrored raised design joined
+  to a static, committed base+handle STL model - `packages/stls/` - whose
+  base footprint is scaled in X/Y to fit the design, boolean-unioned into a
+  single watertight mesh) - not a flat extrusion, and not a
+  generated-from-scratch base plate.
 - **v1 input scope**: freehand vector drawing (Fabric.js canvas), dropped SVG
   files, and typed text (font-to-outline via `opentype.js`, using a small set
   of bundled, redistributable fonts - no custom font upload in v1). Raster
@@ -60,7 +62,7 @@ original technical feasibility analysis that this plan builds on.
   `manifold-3d` internals directly (Dependency Inversion) - via a thin
   `StampPipeline`/`useStampPipeline` facade.
 - **KISS**: v1 stamp geometry is composed from small, independently-testable
-  pure functions (`mirrorShapes`, `extrudeShapes`, `buildBasePlate`,
+  pure functions (`mirrorShapes`, `extrudeShapes`, `scaleBaseMeshToFootprint`,
   `unionMeshes`) rather than one monolithic "generate" function.
 - **DRY**: curve-flattening, scale-mapping, and validation-rule logic are
   written once in `geometry-core` and reused by every importer/consumer
@@ -168,6 +170,7 @@ flowchart TB
 - **`PathShapeSet`**: validated 2D polygons-with-holes (Phase 2), ready for 3D
   geometry generation.
 - **Stamp negative**: the actual physical stamp geometry - a mirrored raised
-  design fused onto a base plate, as opposed to a plain flat extrusion.
+  design joined to a static, pre-modeled base+handle STL (scaled in X/Y to
+  fit the design), as opposed to a plain flat extrusion.
 - **Manifold/watertight mesh**: a 3D mesh with no gaps, holes, or
   self-intersections - required for a valid, 3D-printable STL.

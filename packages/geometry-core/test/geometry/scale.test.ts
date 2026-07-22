@@ -21,7 +21,6 @@ describe("scaleToMm", () => {
 
     const opts: StampOptions = {
       designHeightMm: 2,
-      baseThicknessMm: 3,
       canvasSizeUnits: 100,
       canvasSizeMm: 250,
     };

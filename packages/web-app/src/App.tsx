@@ -15,7 +15,6 @@ import { useStampPipeline } from "./hooks/useStampPipeline";
 
 const DEFAULT_OPTIONS: StampOptions = {
   designHeightMm: 2,
-  baseThicknessMm: 3,
   canvasSizeUnits: 100,
   canvasSizeMm: 50,
 };
@@ -98,8 +97,8 @@ export function App() {
             </p>
             <DownloadButton
               state={pipeline.state}
-              onDownload={() =>
-                pipeline.exportStl(options) ?? new Uint8Array()
+              onDownload={async () =>
+                (await pipeline.exportStl(options)) ?? new Uint8Array()
               }
             />
           </div>

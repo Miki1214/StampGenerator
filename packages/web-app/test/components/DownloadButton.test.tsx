@@ -59,7 +59,7 @@ describe("DownloadButton", () => {
     ).toBe(false);
   });
 
-  it("calls triggerDownload with a non-empty byte array when clicked in the ready state", () => {
+  it("calls triggerDownload with a non-empty byte array when clicked in the ready state", async () => {
     const bytes = new Uint8Array([1, 2, 3, 4]);
 
     render(
@@ -71,7 +71,9 @@ describe("DownloadButton", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /download/i }));
 
-    expect(triggerDownload).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(triggerDownload).toHaveBeenCalledTimes(1);
+    });
     const [passedBytes] = vi.mocked(triggerDownload).mock.calls[0];
     expect(passedBytes).toBeInstanceOf(Uint8Array);
     expect(passedBytes.length).toBeGreaterThan(0);
