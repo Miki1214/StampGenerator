@@ -51,6 +51,7 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 50,
       canvasSizeMm: 50,
+      baseShape: "square",
     };
 
     const builder = new StampGeometryBuilder();
@@ -83,6 +84,7 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 50,
       canvasSizeMm: 50,
+      baseShape: "square",
     };
 
     const mesh = new StampGeometryBuilder().build(shapes, opts);
@@ -116,6 +118,7 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 300,
       canvasSizeMm: 60,
+      baseShape: "square",
     };
 
     const mesh = new StampGeometryBuilder().build(shapes, opts);
@@ -147,11 +150,13 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 100,
       canvasSizeMm: 25,
+      baseShape: "square",
     };
     const largeOpts: StampOptions = {
       designHeightMm: 2,
       canvasSizeUnits: 100,
       canvasSizeMm: 50,
+      baseShape: "square",
     };
 
     const smallMesh = new StampGeometryBuilder().build(shapes, smallOpts);
@@ -186,6 +191,7 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 100,
       canvasSizeMm: 100,
+      baseShape: "square",
     };
 
     const mesh = new StampGeometryBuilder().build(shapes, opts);
@@ -217,6 +223,7 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 100,
       canvasSizeMm: 100,
+      baseShape: "square",
     };
 
     const mesh = new StampGeometryBuilder().build(shapes, opts);
@@ -225,6 +232,36 @@ describe("StampGeometryBuilder", () => {
     // The base should match the full 100 mm canvas, not the 40 mm design.
     expect(box.maxX - box.minX).toBeGreaterThanOrEqual(95);
     expect(box.maxY - box.minY).toBeGreaterThanOrEqual(95);
+  });
+
+  it("builds a round base matching the configured stamp diameter", () => {
+    const shapes: PathShapeSet = [
+      {
+        outer: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 50, y: 0 },
+            { x: 50, y: 50 },
+            { x: 0, y: 50 },
+          ],
+        },
+        holes: [],
+      },
+    ];
+    const opts: StampOptions = {
+      designHeightMm: 2,
+      canvasSizeUnits: 50,
+      canvasSizeMm: 50,
+      baseShape: "round",
+    };
+
+    const mesh = new StampGeometryBuilder().build(shapes, opts);
+    const box = getMeshBoundingBox(mesh);
+
+    expect(box.maxX - box.minX).toBeGreaterThanOrEqual(45);
+    expect(box.maxY - box.minY).toBeGreaterThanOrEqual(45);
+    expect(box.maxX - box.minX).toBeLessThanOrEqual(55);
+    expect(box.maxY - box.minY).toBeLessThanOrEqual(55);
   });
 
   it("mirrors an asymmetric L-shape so the tall stem ends up on the opposite side of the plate", () => {
@@ -248,6 +285,7 @@ describe("StampGeometryBuilder", () => {
       designHeightMm: 2,
       canvasSizeUnits: 50,
       canvasSizeMm: 50,
+      baseShape: "square",
     };
 
     const mesh = new StampGeometryBuilder().build(shapes, opts);

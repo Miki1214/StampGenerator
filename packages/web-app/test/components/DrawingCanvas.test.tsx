@@ -14,7 +14,9 @@ describe("DrawingCanvas", () => {
     render(
       <DrawingCanvas
         onImport={onImport}
+        baseShape="square"
         canvasSizeMm={50}
+        onBaseShapeChange={() => {}}
         onCanvasSizeChange={() => {}}
       />,
     );
@@ -38,7 +40,9 @@ describe("DrawingCanvas", () => {
       <StrictMode>
         <DrawingCanvas
           onImport={onImport}
+          baseShape="square"
           canvasSizeMm={50}
+          onBaseShapeChange={() => {}}
           onCanvasSizeChange={() => {}}
         />
       </StrictMode>,

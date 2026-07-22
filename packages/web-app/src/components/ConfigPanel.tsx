@@ -49,9 +49,9 @@ export function ConfigPanel({ value, onChange }: ConfigPanelProps) {
       ) : null}
 
       <p className="font-mono text-xs text-slate leading-relaxed">
-        The base is stretched in X/Y to match the selected stamp size (never
-        smaller than its original size) and the handle is joined on top
-        unchanged.
+        The base matches the selected stamp size: square or round. It is never
+        shrunk below its original modeled size, and the handle is joined on
+        top unchanged.
       </p>
     </div>
   );

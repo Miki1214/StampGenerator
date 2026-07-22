@@ -23,6 +23,7 @@ describe("scaleToMm", () => {
       designHeightMm: 2,
       canvasSizeUnits: 100,
       canvasSizeMm: 250,
+      baseShape: "square",
     };
 
     const scaled = scaleToMm(shapes, opts);

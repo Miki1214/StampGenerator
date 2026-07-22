@@ -2,6 +2,7 @@ import type { PathShapeSet } from "../validate/types";
 import { extrudeShapes } from "./extrude";
 import { getMeshBoundingBox, translateMesh, translateMeshZ } from "./mesh-bounds";
 import { mirrorShapes } from "./mirror";
+import { buildRoundBase } from "./round-base";
 import { scaleBaseMeshToFootprint } from "./scale-base";
 import { scaleToMm } from "./scale";
 import { getStampHardwareMesh } from "./stamp-hardware";
@@ -20,11 +21,14 @@ export class StampGeometryBuilder implements StampGeometryBuilderContract {
     const designBox = getMeshBoundingBox(design);
 
     // Size the base to the configured stamp canvas footprint.
-    const base = scaleBaseMeshToFootprint(
-      getStampHardwareMesh("base"),
-      opts.canvasSizeMm,
-      opts.canvasSizeMm,
-    );
+    const base =
+      opts.baseShape === "round"
+        ? buildRoundBase(opts.canvasSizeMm)
+        : scaleBaseMeshToFootprint(
+            getStampHardwareMesh("base"),
+            opts.canvasSizeMm,
+            opts.canvasSizeMm,
+          );
     const handle = getStampHardwareMesh("handle");
 
     // The design (the raised, mirrored relief) joins the bottom of the base;

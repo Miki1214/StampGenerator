@@ -18,6 +18,7 @@ const DEFAULT_OPTIONS: StampOptions = {
   designHeightMm: 2,
   canvasSizeUnits: DRAWING_CANVAS_SIZE_PX,
   canvasSizeMm: 50,
+  baseShape: "square",
 };
 
 export function App() {
@@ -45,12 +46,13 @@ export function App() {
               {activeTab === "draw" ? (
                 <DrawingCanvas
                   onImport={pipeline.importFromCanvas}
+                  baseShape={options.baseShape}
                   canvasSizeMm={options.canvasSizeMm}
-                  onCanvasSizeChange={(sizeMm) =>
-                    setOptions((current) => ({
-                      ...current,
-                      canvasSizeMm: sizeMm,
-                    }))
+                  onBaseShapeChange={(baseShape) =>
+                    setOptions((current) => ({ ...current, baseShape }))
+                  }
+                  onCanvasSizeChange={(canvasSizeMm) =>
+                    setOptions((current) => ({ ...current, canvasSizeMm }))
                   }
                 />
               ) : null}

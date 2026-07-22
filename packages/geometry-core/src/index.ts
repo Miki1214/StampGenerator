@@ -52,11 +52,19 @@ export {
   type StampHardwarePart,
   type StampHardwareDataProvider,
 } from "./geometry/stamp-hardware";
+export {
+  buildRoundBase,
+  NATIVE_BASE_CENTER,
+  NATIVE_BASE_THICKNESS_MM,
+} from "./geometry/round-base";
 export { unionMeshes } from "./geometry/union";
 export { StampGeometryBuilder } from "./geometry/stamp-geometry-builder";
 export {
   STAMP_CANVAS_SIZES_MM,
+  STAMP_ROUND_DIAMETERS_MM,
+  type StampBaseShape,
   type StampCanvasSizeMm,
+  type StampRoundDiameterMm,
 } from "./geometry/types";
 export type { Mesh, StampOptions } from "./geometry/types";
 export {

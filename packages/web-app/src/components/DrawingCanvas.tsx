@@ -8,12 +8,14 @@ import type {
 import { strokeToOutline } from "../lib/stroke-outline";
 import { DRAWING_CANVAS_SIZE_PX } from "../lib/drawing-canvas";
 import { StampSizeSelector } from "./StampSizeSelector";
-import type { StampCanvasSizeMm } from "@stamp-generator/geometry-core";
+import type { StampBaseShape } from "@stamp-generator/geometry-core";
 
 export interface DrawingCanvasProps {
   onImport: (canvas: FabricCanvasLike) => void;
+  baseShape: StampBaseShape;
   canvasSizeMm: number;
-  onCanvasSizeChange: (sizeMm: StampCanvasSizeMm) => void;
+  onBaseShapeChange: (shape: StampBaseShape) => void;
+  onCanvasSizeChange: (sizeMm: number) => void;
 }
 
 const BRUSH_WIDTH = 8;
@@ -88,7 +90,9 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
 
 export function DrawingCanvas({
   onImport,
+  baseShape,
   canvasSizeMm,
+  onBaseShapeChange,
   onCanvasSizeChange,
 }: DrawingCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -183,12 +187,16 @@ export function DrawingCanvas({
   return (
     <div className="space-y-4">
       <StampSizeSelector
-        value={canvasSizeMm}
-        onChange={onCanvasSizeChange}
+        baseShape={baseShape}
+        onBaseShapeChange={onBaseShapeChange}
+        canvasSizeMm={canvasSizeMm}
+        onCanvasSizeChange={onCanvasSizeChange}
       />
       <div
         ref={containerRef}
-        className="inline-block overflow-hidden rounded border border-slate/30 bg-white"
+        className={`inline-block overflow-hidden border border-slate/30 bg-white ${
+          baseShape === "round" ? "rounded-full" : "rounded"
+        }`}
       />
       <div>
         <button

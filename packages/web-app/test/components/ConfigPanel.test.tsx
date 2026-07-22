@@ -12,6 +12,7 @@ describe("ConfigPanel", () => {
           designHeightMm: 2,
           canvasSizeUnits: 100,
           canvasSizeMm: 50,
+          baseShape: "square",
         }}
         onChange={onChange}
       />,
