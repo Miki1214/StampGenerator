@@ -29,11 +29,41 @@ describe("TextInputPanel", () => {
       text: "HELLO",
       fontId: "serif",
       fontSizeMm: 12,
-      verticalAlign: "center",
+      verticalAlign: "border",
       lineAlign: "center",
       frameUnits: 400,
       baseShape: "round",
     });
+  });
+
+  it("defaults to 30 mm size and around-the-border alignment on round stamps", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    expect(screen.getByLabelText(/size/i)).toHaveProperty("value", "30");
+    expect(screen.getByLabelText(/vertical alignment/i)).toHaveProperty(
+      "value",
+      "border",
+    );
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "Hi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /import text/i }));
+
+    expect(onImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fontSizeMm: 30,
+        verticalAlign: "border",
+      }),
+    );
   });
 
   it("hides the Around the border option when the base shape is square", () => {

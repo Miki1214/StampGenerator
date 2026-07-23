@@ -25,9 +25,9 @@ export function TextInputPanel({
 }: TextInputPanelProps) {
   const [text, setText] = useState("");
   const [fontId, setFontId] = useState<BundledFontId>("sans");
-  const [fontSizeMm, setFontSizeMm] = useState(10);
+  const [fontSizeMm, setFontSizeMm] = useState(30);
   const [verticalAlign, setVerticalAlign] =
-    useState<TextVerticalAlign>("center");
+    useState<TextVerticalAlign>("border");
   const [lineAlign, setLineAlign] = useState<TextLineAlign>("center");
 
   const effectiveVerticalAlign: TextVerticalAlign =

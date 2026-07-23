@@ -203,10 +203,17 @@ function layoutBorder(
   const margin = source.frameUnits * FRAME_MARGIN_RATIO;
   const cx = source.frameUnits / 2;
   const cy = source.frameUnits / 2;
-  const radius = Math.max(
-    source.frameUnits / 2 - margin - source.fontSizeMm * 0.6,
-    source.fontSizeMm,
-  );
+  // Shared outer rim both lines should hug (inside the frame margin).
+  const outerRadius = source.frameUnits / 2 - margin;
+  const ascender = Math.max(font.ascender * scale, source.fontSizeMm * 0.7);
+  const descender = Math.max(Math.abs(font.descender * scale), source.fontSizeMm * 0.15);
+  // Top arc: tops point outward, so baseline sits inward by ~ascender.
+  // Bottom arc: tops point inward (extra π), so the outer edge is the
+  // baseline/descenders — push that baseline out so both lines sit the same
+  // distance from the border.
+  const minRadius = source.fontSizeMm;
+  const topRadius = Math.max(outerRadius - ascender, minRadius);
+  const bottomRadius = Math.max(outerRadius - descender, minRadius);
 
   const glyphs: LaidOutGlyph[] = [];
 
@@ -218,9 +225,10 @@ function layoutBorder(
         scale,
         cx,
         cy,
-        radius,
+        radius: topRadius,
         midAngle: -Math.PI / 2,
-        reverse: false,
+        // Top arc: LTR with increasing angle; tops point outward.
+        angleDirection: 1,
         extraRotation: 0,
       }),
     );
@@ -234,9 +242,11 @@ function layoutBorder(
         scale,
         cx,
         cy,
-        radius,
+        radius: bottomRadius,
         midAngle: Math.PI / 2,
-        reverse: true,
+        // Bottom arc: LTR with decreasing angle so the first char sits on the
+        // viewer's left; extra π keeps letters upright when viewed normally.
+        angleDirection: -1,
         extraRotation: Math.PI,
       }),
     );
@@ -253,41 +263,63 @@ function placeOnArc(args: {
   cy: number;
   radius: number;
   midAngle: number;
-  reverse: boolean;
+  /** +1 = increasing angle (top), -1 = decreasing angle (bottom LTR). */
+  angleDirection: 1 | -1;
   extraRotation: number;
 }): LaidOutGlyph[] {
-  const { font, text, scale, cx, cy, radius, midAngle, reverse, extraRotation } =
-    args;
+  const {
+    font,
+    text,
+    scale,
+    cx,
+    cy,
+    radius,
+    midAngle,
+    angleDirection,
+    extraRotation,
+  } = args;
 
-  const measured = measureLine(font, text, scale);
-  if (measured.width <= 0 || measured.chars.length === 0) {
+  // Cumulative distance along the baseline, including kerning — same as flat
+  // layout. Each glyph's local origin is its left side bearing (getPath(0,…)),
+  // so we place that origin at `distance` along the arc (not at the mid-advance
+  // point, which was leaving half-advance gaps and overlaps).
+  const slots: { char: string; distance: number; advance: number }[] = [];
+  let distance = 0;
+  let previous: ReturnType<Font["charToGlyph"]> | null = null;
+  for (const char of text) {
+    const glyph = font.charToGlyph(char);
+    if (previous) {
+      distance += font.getKerningValue(previous, glyph) * scale;
+    }
+    const advance = (glyph.advanceWidth ?? 0) * scale;
+    slots.push({ char, distance, advance });
+    distance += advance;
+    previous = glyph;
+  }
+
+  if (slots.length === 0 || distance <= 0) {
     return [];
   }
 
-  const sweep = measured.width / radius;
-  let angle = midAngle - sweep / 2;
-
-  const chars = reverse ? [...measured.chars].reverse() : measured.chars;
-  const advances = reverse
-    ? chars.map((char) => (font.charToGlyph(char).advanceWidth ?? 0) * scale)
-    : measured.advances;
+  const totalWidth = distance;
+  const sweep = totalWidth / radius;
+  // For +direction, start at the left end (mid - sweep/2) and walk CCW.
+  // For -direction, start at the viewer's left (mid + sweep/2) and walk CW.
+  const startAngle = midAngle - angleDirection * (sweep / 2);
 
   const glyphs: LaidOutGlyph[] = [];
-  for (let i = 0; i < chars.length; i++) {
-    const advance = advances[i];
-    const half = advance / (2 * radius);
-    const glyphAngle = angle + half;
+  for (const slot of slots) {
+    const glyphAngle = startAngle + angleDirection * (slot.distance / radius);
     const rotation = glyphAngle + Math.PI / 2 + extraRotation;
     glyphs.push({
-      char: chars[i],
-      advance,
+      char: slot.char,
+      advance: slot.advance,
       placement: {
         x: cx + radius * Math.cos(glyphAngle),
         y: cy + radius * Math.sin(glyphAngle),
         rotation,
       },
     });
-    angle += advance / radius;
   }
 
   return glyphs;

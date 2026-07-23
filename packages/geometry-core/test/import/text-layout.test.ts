@@ -160,11 +160,81 @@ describe("layoutText", () => {
     const top = layout.glyphs.slice(0, 3);
     const bottom = layout.glyphs.slice(3);
     expect(top.map((g) => g.char).join("")).toBe("TOP");
-    expect(bottom.map((g) => g.char).join("")).toBe("MOTTOB");
+    // Bottom keeps LTR character order; angular walk is reversed instead.
+    expect(bottom.map((g) => g.char).join("")).toBe("BOTTOM");
 
     const cy = 100;
     expect(Math.max(...top.map((g) => g.placement.y))).toBeLessThan(cy);
     expect(Math.min(...bottom.map((g) => g.placement.y))).toBeGreaterThan(cy);
+  });
+
+  it("places the bottom arc baseline farther out so both lines hug the rim", () => {
+    const frameUnits = 400;
+    const fontSizeMm = 24;
+    const layout = layoutText(
+      sansFont,
+      baseRequest({
+        text: "Kimi Workshop\nKimi Workshop",
+        verticalAlign: "border",
+        baseShape: "round",
+        frameUnits,
+        fontSizeMm,
+      }),
+    );
+
+    const cx = frameUnits / 2;
+    const cy = frameUnits / 2;
+    const mid = Math.floor(layout.glyphs.length / 2);
+    const top = layout.glyphs.slice(0, mid);
+    const bottom = layout.glyphs.slice(mid);
+
+    const meanRadius = (glyphs: { placement: { x: number; y: number } }[]) => {
+      const total = glyphs.reduce(
+        (sum, g) =>
+          sum + Math.hypot(g.placement.x - cx, g.placement.y - cy),
+        0,
+      );
+      return total / glyphs.length;
+    };
+
+    // Bottom baseline must sit outside the top baseline (closer to the rim)
+    // to compensate for tops pointing inward vs outward.
+    expect(meanRadius(bottom)).toBeGreaterThan(meanRadius(top) + 5);
+  });
+
+  it("spaces border glyphs by advance+kerning without mid-slot gaps", () => {
+    const layout = layoutText(
+      sansFont,
+      baseRequest({
+        text: "Kimi Workshop",
+        verticalAlign: "border",
+        baseShape: "round",
+        frameUnits: 400,
+        fontSizeMm: 24,
+      }),
+    );
+
+    // Chord length between consecutive non-space glyph origins should track
+    // that pair's advance (plus kerning), not leave ~½-advance holes.
+    const scale = 24 / sansFont.unitsPerEm;
+    for (let i = 0; i < layout.glyphs.length - 1; i++) {
+      const a = layout.glyphs[i];
+      const b = layout.glyphs[i + 1];
+      if (a.char === " " || b.char === " ") {
+        continue;
+      }
+      const chord = Math.hypot(
+        b.placement.x - a.placement.x,
+        b.placement.y - a.placement.y,
+      );
+      const glyphA = sansFont.charToGlyph(a.char);
+      const glyphB = sansFont.charToGlyph(b.char);
+      const expected =
+        a.advance + sansFont.getKerningValue(glyphA, glyphB) * scale;
+      // Arc chord ≈ arc length for these small steps.
+      expect(chord).toBeGreaterThan(expected * 0.7);
+      expect(chord).toBeLessThan(expected * 1.3);
+    }
   });
 
   it("falls back to centered block layout when border is requested on a square stamp", () => {
