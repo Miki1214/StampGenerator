@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import type { Mesh } from "@stamp-generator/geometry-core";
 import {
   AmbientLight,
@@ -23,12 +23,13 @@ export interface StampPreviewProps {
   status: PreviewStatus;
 }
 
-/** Design face (low Z) — dark rubber. */
-const COLOR_DESIGN = new Color("#121826");
-/** Base plate — light so it separates from handle + background. */
-const COLOR_BASE = new Color("#f0f3ee");
-/** Handle — medium cool grey. */
-const COLOR_HANDLE = new Color("#6b7c8f");
+/** Print face / design relief — dark ink at the bed. */
+const COLOR_INK = new Color("#140805");
+/** Base + handle body. */
+const COLOR_BODY = new Color("#ea580c");
+
+/** Design extrusion band from the print bed (mm) used for the ink fade. */
+const INK_BAND_MM = 2.5;
 
 /**
  * Exact camera poses (world space, Z-up). Paste new values from the
@@ -42,8 +43,8 @@ type CameraPose = {
 
 /** Interactive main canvas — fit / Reset camera. */
 const MAIN_DEFAULT_CAMERA: CameraPose = {
-  position: { x: 9.768, y: -0.314, z: -203.317 },
-  target: { x: 9.771, y: 0.034, z: -43.518 },
+  position: { x: 8.093, y: -0.886, z: -139.191 },
+  target: { x: 8.094, y: 0.048, z: -43.518 },
   up: { x: 0, y: 0, z: 1 },
 };
 
@@ -55,8 +56,8 @@ const INSET_DEFAULT_CAMERA: CameraPose = {
 };
 
 /**
- * Color by absolute height from the print bed. Design (~2mm) + base (~5mm)
- * are a small band at the bottom; the rest is the handle.
+ * Ink simulation on the design relief only: darkest at the print bed,
+ * fading to body orange through the design height; base + handle stay flat.
  */
 function applyHeightContrastColors(geometry: BufferGeometry) {
   geometry.computeBoundingBox();
@@ -72,18 +73,11 @@ function applyHeightContrastColors(geometry: BufferGeometry) {
 
   for (let i = 0; i < position.count; i += 1) {
     const zFromBed = position.getZ(i) - minZ;
-    if (zFromBed < 2.5) {
-      mixed.copy(COLOR_DESIGN);
-    } else if (zFromBed < 8.5) {
-      if (zFromBed < 4) {
-        mixed.copy(COLOR_DESIGN).lerp(COLOR_BASE, (zFromBed - 2.5) / 1.5);
-      } else if (zFromBed < 7) {
-        mixed.copy(COLOR_BASE);
-      } else {
-        mixed.copy(COLOR_BASE).lerp(COLOR_HANDLE, (zFromBed - 7) / 1.5);
-      }
+    if (zFromBed < INK_BAND_MM) {
+      const t = zFromBed / INK_BAND_MM;
+      mixed.copy(COLOR_INK).lerp(COLOR_BODY, t);
     } else {
-      mixed.copy(COLOR_HANDLE);
+      mixed.copy(COLOR_BODY);
     }
     colors[i * 3] = mixed.r;
     colors[i * 3 + 1] = mixed.g;
@@ -97,24 +91,72 @@ function createStampMaterial(): MeshPhongMaterial {
   return new MeshPhongMaterial({
     color: 0xffffff,
     vertexColors: true,
-    shininess: 28,
-    specular: new Color(0x334455),
-    emissive: new Color(0x0c121c),
-    emissiveIntensity: 0.35,
+    shininess: 36,
+    specular: new Color(0x7c2d12),
+    emissive: new Color(0x7c2d12),
+    emissiveIntensity: 0.2,
   });
 }
 
-function addStampLights(scene: Scene) {
-  const hemi = new HemisphereLight(0xffffff, 0x334155, 1.6);
-  const ambient = new AmbientLight(0xffffff, 1.1);
-  const key = new DirectionalLight(0xffffff, 1.4);
-  key.position.set(40, -120, 90);
-  const fill = new DirectionalLight(0xe8f0ff, 1.2);
-  fill.position.set(-100, -20, 70);
-  const top = new DirectionalLight(0xffffff, 0.9);
-  top.position.set(0, 40, 160);
-  const front = new DirectionalLight(0xffffff, 0.85);
-  front.position.set(0, -150, 30);
+type Vec3Config = { x: number; y: number; z: number };
+
+type StampLightingConfig = {
+  hemi: { sky: number; ground: number; intensity: number };
+  ambient: { color: number; intensity: number };
+  key: { color: number; intensity: number; position: Vec3Config };
+  fill: { color: number; intensity: number; position: Vec3Config };
+  top: { color: number; intensity: number; position: Vec3Config };
+  front: { color: number; intensity: number; position: Vec3Config };
+};
+
+const DEFAULT_LIGHTING: StampLightingConfig = {
+  hemi: { sky: 0xffffff, ground: 0x334155, intensity: 1.6 },
+  ambient: { color: 0xffffff, intensity: 2.4 },
+  key: {
+    color: 0xffffff,
+    intensity: 1.4,
+    position: { x: 40, y: -120, z: 90 },
+  },
+  fill: {
+    color: 0xe8f0ff,
+    intensity: 1.2,
+    position: { x: -100, y: -20, z: 70 },
+  },
+  top: {
+    color: 0xffffff,
+    intensity: 0.9,
+    position: { x: 0, y: 40, z: 160 },
+  },
+  front: {
+    color: 0xffffff,
+    intensity: 0.85,
+    position: { x: 0, y: -150, z: 30 },
+  },
+};
+
+function addStampLights(scene: Scene, config: StampLightingConfig) {
+  const hemi = new HemisphereLight(
+    config.hemi.sky,
+    config.hemi.ground,
+    config.hemi.intensity,
+  );
+  const ambient = new AmbientLight(config.ambient.color, config.ambient.intensity);
+  const key = new DirectionalLight(config.key.color, config.key.intensity);
+  key.position.set(config.key.position.x, config.key.position.y, config.key.position.z);
+  const fill = new DirectionalLight(config.fill.color, config.fill.intensity);
+  fill.position.set(
+    config.fill.position.x,
+    config.fill.position.y,
+    config.fill.position.z,
+  );
+  const top = new DirectionalLight(config.top.color, config.top.intensity);
+  top.position.set(config.top.position.x, config.top.position.y, config.top.position.z);
+  const front = new DirectionalLight(config.front.color, config.front.intensity);
+  front.position.set(
+    config.front.position.x,
+    config.front.position.y,
+    config.front.position.z,
+  );
   scene.add(hemi, ambient, key, fill, top, front);
 }
 
@@ -241,8 +283,8 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     const onControlsEnd = () => logCameraPose(mainCamera, controls, "end");
     controls.addEventListener("end", onControlsEnd);
 
-    addStampLights(mainScene);
-    addStampLights(insetScene);
+    addStampLights(mainScene, DEFAULT_LIGHTING);
+    addStampLights(insetScene, DEFAULT_LIGHTING);
 
     const mainMaterial = createStampMaterial();
     const insetMaterial = createStampMaterial();
@@ -345,7 +387,7 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
   const showPlaceholder = !mesh || status !== "ready";
   const placeholderText =
     status === "building"
-      ? "Building preview…"
+      ? "Building preview..."
       : status === "error"
         ? "Preview failed"
         : "Draw or import a design to preview the stamp";

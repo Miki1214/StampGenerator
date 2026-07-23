@@ -13,7 +13,7 @@ describe("StampPreview", () => {
 
   it("renders a building placeholder while the mesh is rebuilding", () => {
     render(<StampPreview mesh={null} status="building" />);
-    expect(screen.getByText("Building preview…")).toBeTruthy();
+    expect(screen.getByText("Building preview...")).toBeTruthy();
   });
 
   it("shows Reset camera and a locked inset when a ready mesh is present", () => {
