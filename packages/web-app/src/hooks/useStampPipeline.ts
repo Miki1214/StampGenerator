@@ -55,7 +55,8 @@ export interface UseStampPipeline {
 
 const DEFAULT_RULES = {
   minFeatureSizeMm: 0.3,
-  maxRingCount: 100,
+  // Text (esp. border arcs) emits many glyph contours; 100 was too low.
+  maxRingCount: 2000,
 };
 
 const IMPORT_TOLERANCE = 0.1;

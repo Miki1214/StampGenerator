@@ -13,14 +13,14 @@ describe("CollapsibleTextPanel", () => {
     );
 
     expect(screen.queryByLabelText(/^text$/i)).toBeNull();
-    expect(screen.queryByRole("button", { name: /import text/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /add text/i })).toBeNull();
 
     fireEvent.click(
       screen.getByRole("button", { name: /add typography to the stamp/i }),
     );
 
     expect(screen.getByLabelText(/^text$/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /import text/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /add text/i })).toBeTruthy();
   });
 
   it("forwards import submissions from the nested panel", () => {
@@ -40,7 +40,7 @@ describe("CollapsibleTextPanel", () => {
     fireEvent.change(screen.getByLabelText(/^text$/i), {
       target: { value: "Hi" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /import text/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
 
     expect(onImport).toHaveBeenCalledWith(
       expect.objectContaining({

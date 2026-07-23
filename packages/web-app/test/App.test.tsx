@@ -24,6 +24,6 @@ describe("Stamp Generator app shell", () => {
       name: /add typography to the stamp/i,
     });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("button", { name: /import text/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /add text/i })).toBeNull();
   });
 });

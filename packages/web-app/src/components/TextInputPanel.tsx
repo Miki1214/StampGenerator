@@ -121,7 +121,7 @@ export function TextInputPanel({
         type="submit"
         className="border border-accent text-accent font-mono text-sm px-6 py-3 rounded hover:bg-accent/10 transition-colors"
       >
-        Import text
+        Add text
       </button>
     </form>
   );

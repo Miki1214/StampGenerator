@@ -23,7 +23,7 @@ describe("TextInputPanel", () => {
     fireEvent.change(screen.getByLabelText(/size/i), {
       target: { value: "12" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /import text/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
 
     expect(onImport).toHaveBeenCalledWith({
       text: "HELLO",
@@ -56,7 +56,7 @@ describe("TextInputPanel", () => {
     fireEvent.change(screen.getByLabelText(/^text$/i), {
       target: { value: "Hi" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /import text/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
 
     expect(onImport).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -120,7 +120,7 @@ describe("TextInputPanel", () => {
     fireEvent.change(screen.getByLabelText(/line alignment/i), {
       target: { value: "left" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /import text/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
 
     expect(onImport).toHaveBeenCalledWith(
       expect.objectContaining({
