@@ -15,7 +15,7 @@ export interface UseDebouncedStampPreviewArgs {
 
 /**
  * Debounced live preview: draw-mode scene changes and options rebuild the full
- * stamp mesh; SVG/text rebuild when pipeline reaches ready or options change.
+ * stamp mesh; SVG rebuild when pipeline reaches ready or options change.
  */
 export function useDebouncedStampPreview({
   activeTab,

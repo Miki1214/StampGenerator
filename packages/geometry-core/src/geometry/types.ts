@@ -12,12 +12,25 @@ export type StampRoundDiameterMm = (typeof STAMP_ROUND_DIAMETERS_MM)[number];
 
 export type StampBaseShape = "square" | "round";
 
+export interface DesignFrame {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 export interface StampOptions {
   designHeightMm: number;
   canvasSizeUnits: number;
   /** Square side length or round stamp diameter in mm. */
   canvasSizeMm: number;
   baseShape: StampBaseShape;
+  /**
+   * Canvas-unit bbox to center the design against, instead of the design's
+   * own tight geometry bbox. Set by Text mode so top/bottom/border layout
+   * survives builder placement; Draw/SVG leave this unset (unchanged behavior).
+   */
+  designFrame?: DesignFrame;
 }
 
 export interface Mesh {

@@ -1,5 +1,6 @@
 import { parse as parseFont, type Font, type PathCommand } from "opentype.js";
 import { flattenCubicBezier } from "./curve-flatten";
+import { layoutText, transformLocalPoint } from "./text-layout";
 import type {
   BundledFontId,
   Point2D,
@@ -35,24 +36,20 @@ export class TextOutlineImporter
     }
 
     const font = loadFont(source.fontId);
+    const layout = layoutText(font, source);
     const rings: RawPathSet["rings"] = [];
-    const scale = source.fontSizeMm / font.unitsPerEm;
-    let x = 0;
-    let previous: ReturnType<Font["charToGlyph"]> | null = null;
 
-    // Manual LTR layout avoids opentype.js GSUB feature gaps on Noto;
-    // kerning still comes from the font's own kern/GPOS metrics.
-    for (const char of source.text) {
-      const glyph = font.charToGlyph(char);
-      if (previous) {
-        x += font.getKerningValue(previous, glyph) * scale;
+    for (const laidOut of layout.glyphs) {
+      const glyph = font.charToGlyph(laidOut.char);
+      const path = glyph.getPath(0, layout.baselineY, source.fontSizeMm);
+      const localRings = commandsToRings(path.commands, tolerance);
+      for (const ring of localRings) {
+        rings.push({
+          points: ring.points.map((point) =>
+            transformLocalPoint(point, laidOut.placement, layout.baselineY),
+          ),
+        });
       }
-
-      const path = glyph.getPath(x, source.fontSizeMm, source.fontSizeMm);
-      rings.push(...commandsToRings(path.commands, tolerance));
-
-      x += (glyph.advanceWidth ?? 0) * scale;
-      previous = glyph;
     }
 
     return { rings };

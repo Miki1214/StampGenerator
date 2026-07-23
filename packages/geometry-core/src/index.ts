@@ -6,6 +6,8 @@ export type {
   RawRing,
   ShapeImporter,
   TextImportRequest,
+  TextLineAlign,
+  TextVerticalAlign,
 } from "./import/types";
 export { flattenArc, flattenCubicBezier } from "./import/curve-flatten";
 export { SvgFileImporter } from "./import/svg-file-importer";
@@ -20,6 +22,14 @@ export {
   setBundledFontDataProvider,
   type BundledFontDataProvider,
 } from "./import/text-outline-importer";
+export {
+  layoutText,
+  transformLocalPoint,
+  splitLines,
+  type GlyphPlacement,
+  type LaidOutGlyph,
+  type TextLayoutResult,
+} from "./import/text-layout";
 export { initManifold, getManifold, ShapeCleaner } from "./validate/shape-cleaner";
 export { ShapeValidator } from "./validate/shape-validator";
 export type {
@@ -66,7 +76,7 @@ export {
   type StampCanvasSizeMm,
   type StampRoundDiameterMm,
 } from "./geometry/types";
-export type { Mesh, StampOptions } from "./geometry/types";
+export type { DesignFrame, Mesh, StampOptions } from "./geometry/types";
 export {
   BinaryStlExporter,
   type MeshExporter,

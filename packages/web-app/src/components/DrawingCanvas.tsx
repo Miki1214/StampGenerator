@@ -3,16 +3,24 @@ import { Canvas, PencilBrush, Point, util, type FabricObject } from "fabric";
 import type {
   FabricCanvasLike,
   FabricStrokeLike,
+  PathShapeSet,
   Point2D,
+  StampBaseShape,
 } from "@stamp-generator/geometry-core";
 import { strokeToOutline } from "../lib/stroke-outline";
 import { smoothPolyline } from "../lib/smooth-stroke";
+import {
+  isFilledOutlineObject,
+  outlineShapesToPolygons,
+  STAMP_INK_COLOR,
+} from "../lib/outline-to-fabric";
 import { DRAWING_CANVAS_SIZE_PX } from "../lib/drawing-canvas";
 import { StampSizeSelector } from "./StampSizeSelector";
-import type { StampBaseShape } from "@stamp-generator/geometry-core";
 
 export interface DrawingCanvasHandle {
   getFabricCanvasLike(): FabricCanvasLike;
+  /** Paint cleaned outline shapes (e.g. text glyphs) onto the canvas. */
+  addOutlineShapes(shapes: PathShapeSet): void;
 }
 
 export interface DrawingCanvasProps {
@@ -76,6 +84,40 @@ function pathPointsInCanvasSpace(obj: FabricObject): Point2D[] {
   return points;
 }
 
+function polygonPointsInCanvasSpace(obj: FabricObject): Point2D[] {
+  const poly = obj as FabricObject & {
+    points?: { x: number; y: number }[];
+    pathOffset?: { x: number; y: number };
+  };
+  if (!Array.isArray(poly.points) || poly.points.length === 0) {
+    return [];
+  }
+
+  const matrix = obj.calcTransformMatrix();
+  const offsetX = poly.pathOffset?.x ?? 0;
+  const offsetY = poly.pathOffset?.y ?? 0;
+  const points: Point2D[] = [];
+
+  for (const p of poly.points) {
+    const local = new Point(p.x - offsetX, p.y - offsetY);
+    if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) {
+      continue;
+    }
+    const absolute = util.transformPoint(local, matrix);
+    points.push({ x: absolute.x, y: absolute.y });
+  }
+
+  return points;
+}
+
+function objectPointsInCanvasSpace(obj: FabricObject): Point2D[] {
+  const poly = obj as FabricObject & { points?: unknown[] };
+  if (Array.isArray(poly.points) && poly.points.length > 0) {
+    return polygonPointsInCanvasSpace(obj);
+  }
+  return pathPointsInCanvasSpace(obj);
+}
+
 /**
  * Smooths a freshly-drawn (not yet added-to-canvas) Fabric path in place,
  * before it is rasterized or read for outline generation. Runs on
@@ -127,10 +169,19 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
   return {
     getObjects(): FabricStrokeLike[] {
       return canvas.getObjects().flatMap((obj) => {
-        const centerline = pathPointsInCanvasSpace(obj);
-        if (centerline.length < 2) {
+        const rawPoints = objectPointsInCanvasSpace(obj);
+        if (rawPoints.length < 2) {
           return [];
         }
+
+        // Filled outline shapes (text glyphs) are already closed rings.
+        if (isFilledOutlineObject(obj)) {
+          if (rawPoints.length < 3) {
+            return [];
+          }
+          return [{ type: String(obj.type ?? "polygon"), points: rawPoints }];
+        }
+
         const strokeWidth =
           typeof (obj as FabricObject & { strokeWidth?: number }).strokeWidth ===
           "number"
@@ -139,7 +190,7 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
                 1,
               )
             : BRUSH_WIDTH;
-        const points = strokeToOutline(centerline, strokeWidth);
+        const points = strokeToOutline(rawPoints, strokeWidth);
         if (points.length < 4) {
           return [];
         }
@@ -163,6 +214,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
   const clearCanvasRef = useRef<(() => void) | null>(null);
+  const addOutlineShapesRef = useRef<((shapes: PathShapeSet) => void) | null>(
+    null,
+  );
   const onSceneChangeRef = useRef(onSceneChange);
   onSceneChangeRef.current = onSceneChange;
 
@@ -173,6 +227,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         return { getObjects: () => [] };
       }
       return toFabricCanvasLike(canvas);
+    },
+    addOutlineShapes(shapes: PathShapeSet): void {
+      addOutlineShapesRef.current?.(shapes);
     },
   }));
 
@@ -197,7 +254,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     });
     const brush = new PencilBrush(canvas);
     brush.width = BRUSH_WIDTH;
-    brush.color = "#0a192f";
+    brush.color = STAMP_INK_COLOR;
     brush.decimate = BRUSH_DECIMATE_PX;
     canvas.freeDrawingBrush = brush;
 
@@ -249,6 +306,20 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     };
     clearCanvasRef.current = clearCanvas;
 
+    addOutlineShapesRef.current = (shapes: PathShapeSet) => {
+      const polygons = outlineShapesToPolygons(shapes);
+      if (polygons.length === 0) {
+        return;
+      }
+      for (const polygon of polygons) {
+        canvas.add(polygon);
+        undoStack.push(polygon);
+      }
+      redoStack.length = 0;
+      canvas.requestRenderAll();
+      notifySceneChange();
+    };
+
     const undo = () => {
       const object = undoStack.pop();
       if (!object) {
@@ -292,6 +363,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       canvas.off("path:created", handlePathCreated);
       canvas.off("object:modified", handleObjectModified);
       clearCanvasRef.current = null;
+      addOutlineShapesRef.current = null;
       canvas.dispose();
       if (activeFabricCanvas === canvas) {
         activeFabricCanvas = null;

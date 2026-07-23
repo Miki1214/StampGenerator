@@ -1,11 +1,16 @@
 import { useState } from "react";
 import type {
   BundledFontId,
+  StampBaseShape,
   TextImportRequest,
+  TextLineAlign,
+  TextVerticalAlign,
 } from "@stamp-generator/geometry-core";
 
 export interface TextInputPanelProps {
   onImport: (request: TextImportRequest) => void;
+  baseShape: StampBaseShape;
+  frameUnits: number;
 }
 
 const inputClassName =
@@ -13,25 +18,46 @@ const inputClassName =
 
 const labelClassName = "block font-mono text-sm text-slate";
 
-export function TextInputPanel({ onImport }: TextInputPanelProps) {
+export function TextInputPanel({
+  onImport,
+  baseShape,
+  frameUnits,
+}: TextInputPanelProps) {
   const [text, setText] = useState("");
   const [fontId, setFontId] = useState<BundledFontId>("sans");
   const [fontSizeMm, setFontSizeMm] = useState(10);
+  const [verticalAlign, setVerticalAlign] =
+    useState<TextVerticalAlign>("center");
+  const [lineAlign, setLineAlign] = useState<TextLineAlign>("center");
+
+  const effectiveVerticalAlign: TextVerticalAlign =
+    verticalAlign === "border" && baseShape !== "round"
+      ? "center"
+      : verticalAlign;
 
   return (
     <form
       className="space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
-        onImport({ text, fontId, fontSizeMm });
+        onImport({
+          text,
+          fontId,
+          fontSizeMm,
+          verticalAlign: effectiveVerticalAlign,
+          lineAlign,
+          frameUnits,
+          baseShape,
+        });
       }}
     >
       <label className={labelClassName}>
         Text
-        <input
+        <textarea
           aria-label="Text"
           value={text}
           onChange={(event) => setText(event.target.value)}
+          rows={3}
           className={inputClassName}
         />
       </label>
@@ -56,6 +82,40 @@ export function TextInputPanel({ onImport }: TextInputPanelProps) {
           onChange={(event) => setFontSizeMm(Number(event.target.value))}
           className={inputClassName}
         />
+      </label>
+      <label className={labelClassName}>
+        Vertical alignment
+        <select
+          aria-label="Vertical alignment"
+          value={effectiveVerticalAlign}
+          onChange={(event) =>
+            setVerticalAlign(event.target.value as TextVerticalAlign)
+          }
+          className={inputClassName}
+        >
+          <option value="center">Center</option>
+          <option value="top">Top</option>
+          <option value="bottom">Bottom</option>
+          <option value="top-down">Top-down</option>
+          {baseShape === "round" ? (
+            <option value="border">Around the border</option>
+          ) : null}
+        </select>
+      </label>
+      <label className={labelClassName}>
+        Line alignment
+        <select
+          aria-label="Line alignment"
+          value={lineAlign}
+          onChange={(event) =>
+            setLineAlign(event.target.value as TextLineAlign)
+          }
+          className={inputClassName}
+        >
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
       </label>
       <button
         type="submit"

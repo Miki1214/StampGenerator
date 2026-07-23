@@ -4,28 +4,27 @@ overview: Add five text-layout alignments (Center, Top, Bottom, Top-down/stacked
 todos:
   - id: types
     content: Extend TextImportRequest (verticalAlign, lineAlign, frameUnits, baseShape) and add StampOptions.designFrame in geometry-core types
-    status: pending
+    status: completed
   - id: text-layout
     content: Add packages/geometry-core/src/import/text-layout.ts with line-splitting, metrics, and anchor/arc placement math
-    status: pending
+    status: completed
   - id: importer
     content: Refactor text-outline-importer.ts to build glyphs in local space and apply per-glyph transforms from text-layout
-    status: pending
+    status: completed
   - id: builder
     content: Update stamp-geometry-builder.ts to center on designFrame when present, else keep tight-bbox behavior
-    status: pending
+    status: completed
   - id: panel-ui
     content: "Update TextInputPanel.tsx: textarea, verticalAlign select (hide border on square), lineAlign select"
-    status: pending
+    status: completed
   - id: app-wiring
     content: Wire baseShape/frameUnits into TextInputPanel and designFrame into effectiveOptions in App.tsx
-    status: pending
+    status: completed
   - id: tests
     content: "Add/extend tests: text-layout, text-outline-importer, stamp-geometry-builder, TextInputPanel"
-    status: pending
+    status: completed
 isProject: false
 ---
-
 
 # Text alignment modes
 

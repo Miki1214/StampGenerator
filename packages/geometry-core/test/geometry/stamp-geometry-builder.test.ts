@@ -321,4 +321,58 @@ describe("StampGeometryBuilder", () => {
     // on the right (high X) half of the design.
     expect(Math.min(...tallStemYs.map((p) => p.x))).toBeGreaterThan(centerX);
   });
+
+  it("centers the design on designFrame rather than the tight geometry bbox", () => {
+    // A small square drawn in the top-left of a 100-unit frame. Without
+    // designFrame the builder would center that square on the base; with
+    // designFrame it should keep the square offset toward the top-left of
+    // the stamp footprint.
+    const shapes: PathShapeSet = [
+      {
+        outer: {
+          points: [
+            { x: 5, y: 5 },
+            { x: 20, y: 5 },
+            { x: 20, y: 20 },
+            { x: 5, y: 20 },
+          ],
+        },
+        holes: [],
+      },
+    ];
+    const opts: StampOptions = {
+      designHeightMm: 2,
+      canvasSizeUnits: 100,
+      canvasSizeMm: 100,
+      baseShape: "square",
+      designFrame: { minX: 0, maxX: 100, minY: 0, maxY: 100 },
+    };
+
+    const mesh = new StampGeometryBuilder().build(shapes, opts);
+
+    const designXy: { x: number; y: number }[] = [];
+    for (let i = 0; i < mesh.vertices.length; i += 3) {
+      if (mesh.vertices[i + 2] <= 1e-3) {
+        designXy.push({ x: mesh.vertices[i], y: mesh.vertices[i + 1] });
+      }
+    }
+
+    const designCenterX =
+      (Math.min(...designXy.map((p) => p.x)) +
+        Math.max(...designXy.map((p) => p.x))) /
+      2;
+    const designCenterY =
+      (Math.min(...designXy.map((p) => p.y)) +
+        Math.max(...designXy.map((p) => p.y))) /
+      2;
+
+    const box = getMeshBoundingBox(mesh);
+    const baseCenterX = (box.minX + box.maxX) / 2;
+    const baseCenterY = (box.minY + box.maxY) / 2;
+
+    // After X-mirror the left-side square lands on the right; it must stay
+    // offset from the base center (not snapped onto it).
+    expect(Math.abs(designCenterX - baseCenterX)).toBeGreaterThan(20);
+    expect(Math.abs(designCenterY - baseCenterY)).toBeGreaterThan(20);
+  });
 });

@@ -78,6 +78,50 @@ describe("DrawingCanvas", () => {
     expect(first.y).toBeCloseTo(last.y);
   });
 
+  it("exports filled outline polygons without stroke expansion", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(
+      <DrawingCanvas
+        ref={ref}
+        baseShape="round"
+        canvasSizeMm={50}
+        onBaseShapeChange={() => {}}
+        onCanvasSizeChange={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes([
+      {
+        outer: {
+          points: [
+            { x: 10, y: 10 },
+            { x: 50, y: 10 },
+            { x: 50, y: 40 },
+            { x: 10, y: 40 },
+          ],
+        },
+        holes: [],
+      },
+    ]);
+
+    await waitFor(() => {
+      const objects = ref.current!.getFabricCanvasLike().getObjects();
+      expect(objects.length).toBe(1);
+    });
+
+    const exported = ref.current!.getFabricCanvasLike().getObjects()[0];
+    // Filled outline keeps ~4 corners (+ optional close), not a stroke ribbon.
+    expect(exported.points.length).toBeLessThan(10);
+    const xs = exported.points.map((p) => p.x);
+    expect(Math.min(...xs)).toBeCloseTo(10, 0);
+    expect(Math.max(...xs)).toBeCloseTo(50, 0);
+  });
+
   it("clears drawn strokes when Clear canvas is clicked and notifies onSceneChange", async () => {
     const onSceneChange = vi.fn();
     const ref = createRef<DrawingCanvasHandle>();

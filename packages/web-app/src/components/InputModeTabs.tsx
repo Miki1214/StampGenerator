@@ -1,4 +1,4 @@
-export type InputMode = "draw" | "svg" | "text";
+export type InputMode = "draw" | "svg";
 
 export interface InputModeTabsProps {
   active: InputMode;
@@ -8,7 +8,6 @@ export interface InputModeTabsProps {
 const TABS: { id: InputMode; label: string; index: string }[] = [
   { id: "draw", label: "Draw", index: "01" },
   { id: "svg", label: "Upload SVG", index: "02" },
-  { id: "text", label: "Text", index: "03" },
 ];
 
 export function InputModeTabs({ active, onSelect }: InputModeTabsProps) {

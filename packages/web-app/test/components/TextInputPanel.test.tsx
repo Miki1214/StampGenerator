@@ -6,9 +6,15 @@ describe("TextInputPanel", () => {
   it("calls its import callback with the correct TextImportRequest on submit", () => {
     const onImport = vi.fn();
 
-    render(<TextInputPanel onImport={onImport} />);
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
 
-    fireEvent.change(screen.getByLabelText(/text/i), {
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
       target: { value: "HELLO" },
     });
     fireEvent.change(screen.getByLabelText(/font/i), {
@@ -23,6 +29,77 @@ describe("TextInputPanel", () => {
       text: "HELLO",
       fontId: "serif",
       fontSizeMm: 12,
+      verticalAlign: "center",
+      lineAlign: "center",
+      frameUnits: 400,
+      baseShape: "round",
     });
+  });
+
+  it("hides the Around the border option when the base shape is square", () => {
+    render(
+      <TextInputPanel
+        onImport={() => {}}
+        baseShape="square"
+        frameUnits={400}
+      />,
+    );
+
+    const options = screen
+      .getByLabelText(/vertical alignment/i)
+      .querySelectorAll("option");
+    const labels = [...options].map((option) => option.textContent);
+    expect(labels).not.toContain("Around the border");
+    expect(labels).toContain("Center");
+    expect(labels).toContain("Top-down");
+  });
+
+  it("offers Around the border when the base shape is round", () => {
+    render(
+      <TextInputPanel
+        onImport={() => {}}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    const options = screen
+      .getByLabelText(/vertical alignment/i)
+      .querySelectorAll("option");
+    const labels = [...options].map((option) => option.textContent);
+    expect(labels).toContain("Around the border");
+  });
+
+  it("includes chosen alignment fields in the import payload", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "A\nB" },
+    });
+    fireEvent.change(screen.getByLabelText(/vertical alignment/i), {
+      target: { value: "top" },
+    });
+    fireEvent.change(screen.getByLabelText(/line alignment/i), {
+      target: { value: "left" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /import text/i }));
+
+    expect(onImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "A\nB",
+        verticalAlign: "top",
+        lineAlign: "left",
+        baseShape: "round",
+        frameUnits: 400,
+      }),
+    );
   });
 });

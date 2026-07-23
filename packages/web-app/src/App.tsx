@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
-import type { StampOptions } from "@stamp-generator/geometry-core";
+import type {
+  StampOptions,
+  TextImportRequest,
+} from "@stamp-generator/geometry-core";
 import { BrandHeader } from "./components/BrandHeader";
+import { CollapsibleTextPanel } from "./components/CollapsibleTextPanel";
 import { DownloadButton } from "./components/DownloadButton";
 import {
   DrawingCanvas,
@@ -12,7 +16,6 @@ import {
 } from "./components/InputModeTabs";
 import { StampPreview } from "./components/StampPreview";
 import { SvgDropZone } from "./components/SvgDropZone";
-import { TextInputPanel } from "./components/TextInputPanel";
 import { ValidationMessages } from "./components/ValidationMessages";
 import { useDebouncedStampPreview } from "./hooks/useDebouncedStampPreview";
 import { useStampPipeline } from "./hooks/useStampPipeline";
@@ -25,17 +28,46 @@ const DEFAULT_OPTIONS: StampOptions = {
   baseShape: "round",
 };
 
+/** Keep canvas layout (text + strokes) in stamp-relative positions. */
+function withDesignFrame(options: StampOptions): StampOptions {
+  return {
+    ...options,
+    designFrame: {
+      minX: 0,
+      maxX: options.canvasSizeUnits,
+      minY: 0,
+      maxY: options.canvasSizeUnits,
+    },
+  };
+}
+
 export function App() {
   const pipeline = useStampPipeline();
   const drawingCanvasRef = useRef<DrawingCanvasHandle>(null);
   const [options, setOptions] = useState<StampOptions>(DEFAULT_OPTIONS);
   const [activeTab, setActiveTab] = useState<InputMode>("draw");
+
+  const drawOptions = withDesignFrame(options);
+  const previewOptions = activeTab === "draw" ? drawOptions : options;
+
   const { onSceneChange } = useDebouncedStampPreview({
     activeTab,
-    options,
+    options: previewOptions,
     drawingCanvasRef,
     pipeline,
   });
+
+  const handleTextImport = (request: TextImportRequest) => {
+    void (async () => {
+      const shapes = await pipeline.importFromText(request);
+      if (!shapes) {
+        return;
+      }
+      // Paint glyphs onto the same Fabric canvas as freehand strokes so both
+      // share one design and the live preview matches what you see.
+      drawingCanvasRef.current?.addOutlineShapes(shapes);
+    })();
+  };
 
   const validationResult =
     pipeline.state.status === "invalid"
@@ -57,7 +89,7 @@ export function App() {
           getObjects: () => [],
         },
       );
-      return pipeline.exportStl(options, shapes ?? undefined);
+      return pipeline.exportStl(drawOptions, shapes ?? undefined);
     }
     return pipeline.exportStl(options);
   };
@@ -76,18 +108,25 @@ export function App() {
               <InputModeTabs active={activeTab} onSelect={setActiveTab} />
               <div className="mt-6">
                 {activeTab === "draw" ? (
-                  <DrawingCanvas
-                    ref={drawingCanvasRef}
-                    baseShape={options.baseShape}
-                    canvasSizeMm={options.canvasSizeMm}
-                    onBaseShapeChange={(baseShape) =>
-                      setOptions((current) => ({ ...current, baseShape }))
-                    }
-                    onCanvasSizeChange={(canvasSizeMm) =>
-                      setOptions((current) => ({ ...current, canvasSizeMm }))
-                    }
-                    onSceneChange={onSceneChange}
-                  />
+                  <>
+                    <CollapsibleTextPanel
+                      onImport={handleTextImport}
+                      baseShape={options.baseShape}
+                      frameUnits={options.canvasSizeUnits}
+                    />
+                    <DrawingCanvas
+                      ref={drawingCanvasRef}
+                      baseShape={options.baseShape}
+                      canvasSizeMm={options.canvasSizeMm}
+                      onBaseShapeChange={(baseShape) =>
+                        setOptions((current) => ({ ...current, baseShape }))
+                      }
+                      onCanvasSizeChange={(canvasSizeMm) =>
+                        setOptions((current) => ({ ...current, canvasSizeMm }))
+                      }
+                      onSceneChange={onSceneChange}
+                    />
+                  </>
                 ) : null}
                 {activeTab === "svg" ? (
                   <SvgDropZone
@@ -98,9 +137,6 @@ export function App() {
                       void pipeline.importFromSvg(file);
                     }}
                   />
-                ) : null}
-                {activeTab === "text" ? (
-                  <TextInputPanel onImport={pipeline.importFromText} />
                 ) : null}
               </div>
               <ValidationMessages result={validationResult} />
