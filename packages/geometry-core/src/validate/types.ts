@@ -17,12 +17,14 @@ export interface ValidationRules {
 }
 
 export type ValidationResult =
-  | { ok: true }
+  | { ok: true; warnings?: ValidationIssue[] }
   | { ok: false; issues: ValidationIssue[] };
 
 export interface ValidationIssue {
   code: string;
   message: string;
+  /** Defaults to `"error"` when omitted. Warnings do not fail validation. */
+  severity?: "error" | "warning";
 }
 
 export interface ShapeCleaner {

@@ -5,7 +5,7 @@ import { ShapeValidator } from "../../src/validate/shape-validator";
 import * as shapeCleanerModule from "../../src/validate/shape-cleaner";
 
 describe("ShapeValidator", () => {
-  it("rejects a shape with a feature narrower than minFeatureSizeMm with a descriptive issue", () => {
+  it("warns (does not reject) a shape with a feature narrower than minFeatureSizeMm", () => {
     // A 0.2mm-wide rectangle — narrower than the 0.5mm minimum feature size.
     const shapes: PathShapeSet = [
       {
@@ -27,14 +27,16 @@ describe("ShapeValidator", () => {
       maxRingCount: 100,
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
       return;
     }
-    expect(result.issues.length).toBeGreaterThanOrEqual(1);
-    expect(result.issues[0].code).toMatch(/feature|narrow|min/i);
-    expect(result.issues[0].message.length).toBeGreaterThan(0);
-    expect(result.issues[0].message).toMatch(/0\.5/);
+    expect(result.warnings).toBeDefined();
+    expect(result.warnings!.length).toBeGreaterThanOrEqual(1);
+    expect(result.warnings![0].code).toMatch(/feature|narrow|min/i);
+    expect(result.warnings![0].severity).toBe("warning");
+    expect(result.warnings![0].message).toMatch(/0\.5/);
+    expect(result.warnings![0].message).toMatch(/might not be represented/i);
   });
 
   it("rejects an empty design with an empty-design issue instead of throwing", () => {

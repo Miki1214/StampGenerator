@@ -42,15 +42,15 @@ describe("StampSizeSelector", () => {
 
     render(
       <StampSizeSelector
-        baseShape="square"
+        baseShape="round"
         onBaseShapeChange={onBaseShapeChange}
         canvasSizeMm={50}
         onCanvasSizeChange={() => {}}
       />,
     );
 
-    fireEvent.click(screen.getByRole("radio", { name: /^round$/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /^square$/i }));
 
-    expect(onBaseShapeChange).toHaveBeenCalledWith("round");
+    expect(onBaseShapeChange).toHaveBeenCalledWith("square");
   });
 });

@@ -25,7 +25,7 @@ export type PipelineState =
   | { status: "idle" }
   | { status: "importing" }
   | { status: "validating" }
-  | { status: "ready"; shapes: PathShapeSet }
+  | { status: "ready"; shapes: PathShapeSet; warnings?: ValidationIssue[] }
   | { status: "invalid"; issues: ValidationIssue[] };
 
 export type PreviewStatus = "idle" | "building" | "ready" | "error";
@@ -135,7 +135,11 @@ export function useStampPipeline(): UseStampPipeline {
           return null;
         }
 
-        setState({ status: "ready", shapes });
+        setState({
+          status: "ready",
+          shapes,
+          ...(result.warnings?.length ? { warnings: result.warnings } : {}),
+        });
         return shapes;
       } catch (error) {
         const message =

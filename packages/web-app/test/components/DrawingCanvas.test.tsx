@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { StrictMode, createRef } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Path } from "fabric";
 import {
   DrawingCanvas,
@@ -15,7 +15,7 @@ describe("DrawingCanvas", () => {
     render(
       <DrawingCanvas
         ref={ref}
-        baseShape="square"
+        baseShape="round"
         canvasSizeMm={50}
         onBaseShapeChange={() => {}}
         onCanvasSizeChange={() => {}}
@@ -42,7 +42,7 @@ describe("DrawingCanvas", () => {
       <StrictMode>
         <DrawingCanvas
           ref={ref}
-          baseShape="square"
+          baseShape="round"
           canvasSizeMm={50}
           onBaseShapeChange={() => {}}
           onCanvasSizeChange={() => {}}
@@ -76,5 +76,42 @@ describe("DrawingCanvas", () => {
     const last = strokes[0].points[strokes[0].points.length - 1];
     expect(first.x).toBeCloseTo(last.x);
     expect(first.y).toBeCloseTo(last.y);
+  });
+
+  it("clears drawn strokes when Clear canvas is clicked and notifies onSceneChange", async () => {
+    const onSceneChange = vi.fn();
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(
+      <DrawingCanvas
+        ref={ref}
+        baseShape="round"
+        canvasSizeMm={50}
+        onBaseShapeChange={() => {}}
+        onCanvasSizeChange={() => {}}
+        onSceneChange={onSceneChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()).not.toBeNull();
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    fabricCanvas.add(
+      new Path("M 20 20 L 100 80", {
+        fill: null,
+        stroke: "#000",
+        strokeWidth: 8,
+      }),
+    );
+    expect(fabricCanvas.getObjects().length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /clear canvas/i }));
+
+    await waitFor(() => {
+      expect(fabricCanvas.getObjects()).toHaveLength(0);
+    });
+    expect(onSceneChange).toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import type {
   Point2D,
 } from "@stamp-generator/geometry-core";
 import { strokeToOutline } from "../lib/stroke-outline";
+import { smoothPolyline } from "../lib/smooth-stroke";
 import { DRAWING_CANVAS_SIZE_PX } from "../lib/drawing-canvas";
 import { StampSizeSelector } from "./StampSizeSelector";
 import type { StampBaseShape } from "@stamp-generator/geometry-core";
@@ -24,6 +25,14 @@ export interface DrawingCanvasProps {
 }
 
 const BRUSH_WIDTH = 8;
+// Drop points that are essentially the same pointer-move sample; keeps
+// smoothing below from having to fight against near-duplicate noise.
+const BRUSH_DECIMATE_PX = 1.5;
+// Freehand strokes shorter than this are deliberate small marks (dots,
+// short ticks) rather than jittery long gestures, so leave them untouched.
+const SMOOTHING_MIN_POINTS = 6;
+const SMOOTHING_ITERATIONS = 3;
+const SMOOTHING_FACTOR = 0.4;
 
 /** Test-only access to the live Fabric canvas (StrictMode-safe mount). */
 export const __drawingCanvasTestHooks = {
@@ -67,6 +76,53 @@ function pathPointsInCanvasSpace(obj: FabricObject): Point2D[] {
   return points;
 }
 
+/**
+ * Smooths a freshly-drawn (not yet added-to-canvas) Fabric path in place,
+ * before it is rasterized or read for outline generation. Runs on
+ * `before:path:created`, so the on-screen stroke and the exported centerline
+ * (and therefore the extruded stamp geometry) are both desensitized to
+ * mouse/pen jitter, since everything downstream reads from `path.path`.
+ */
+function smoothFreshFabricPath(path: FabricObject): void {
+  const pathObj = path as FabricObject & {
+    path?: unknown[];
+    strokeWidth?: number;
+    _setPath?: (data: unknown, adjustPosition: boolean) => void;
+  };
+  const pathData = pathObj.path;
+  if (
+    !Array.isArray(pathData) ||
+    pathData.length < SMOOTHING_MIN_POINTS ||
+    typeof pathObj._setPath !== "function"
+  ) {
+    return;
+  }
+
+  const rawPoints: Point[] = [];
+  for (const segment of pathData) {
+    if (!Array.isArray(segment) || segment.length < 3) {
+      continue;
+    }
+    const x = Number(segment[segment.length - 2]);
+    const y = Number(segment[segment.length - 1]);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      rawPoints.push(new Point(x, y));
+    }
+  }
+  if (rawPoints.length < SMOOTHING_MIN_POINTS) {
+    return;
+  }
+
+  const smoothed = smoothPolyline(rawPoints, SMOOTHING_ITERATIONS, SMOOTHING_FACTOR);
+  const strokeWidth =
+    typeof pathObj.strokeWidth === "number" ? pathObj.strokeWidth : BRUSH_WIDTH;
+  const smoothPathData = util.getSmoothPathFromPoints(
+    smoothed.map((p) => new Point(p.x, p.y)),
+    strokeWidth / 1000,
+  );
+  pathObj._setPath(smoothPathData, true);
+}
+
 export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
   return {
     getObjects(): FabricStrokeLike[] {
@@ -106,6 +162,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
   ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
+  const clearCanvasRef = useRef<(() => void) | null>(null);
   const onSceneChangeRef = useRef(onSceneChange);
   onSceneChangeRef.current = onSceneChange;
 
@@ -141,6 +198,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     const brush = new PencilBrush(canvas);
     brush.width = BRUSH_WIDTH;
     brush.color = "#0a192f";
+    brush.decimate = BRUSH_DECIMATE_PX;
     canvas.freeDrawingBrush = brush;
 
     fabricRef.current = canvas;
@@ -152,6 +210,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     const notifySceneChange = () => {
       onSceneChangeRef.current?.();
     };
+
+    const handleBeforePathCreated = (event: { path?: FabricObject }) => {
+      if (!event.path) {
+        return;
+      }
+      smoothFreshFabricPath(event.path);
+    };
+    canvas.on("before:path:created", handleBeforePathCreated);
 
     const handlePathCreated = (event: { path?: FabricObject }) => {
       if (!event.path) {
@@ -167,6 +233,21 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       notifySceneChange();
     };
     canvas.on("object:modified", handleObjectModified);
+
+    const clearCanvas = () => {
+      const objects = canvas.getObjects().slice();
+      if (objects.length === 0) {
+        return;
+      }
+      for (const object of objects) {
+        canvas.remove(object);
+      }
+      undoStack.length = 0;
+      redoStack.length = 0;
+      canvas.requestRenderAll();
+      notifySceneChange();
+    };
+    clearCanvasRef.current = clearCanvas;
 
     const undo = () => {
       const object = undoStack.pop();
@@ -207,8 +288,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      canvas.off("before:path:created", handleBeforePathCreated);
       canvas.off("path:created", handlePathCreated);
       canvas.off("object:modified", handleObjectModified);
+      clearCanvasRef.current = null;
       canvas.dispose();
       if (activeFabricCanvas === canvas) {
         activeFabricCanvas = null;
@@ -226,6 +309,15 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         canvasSizeMm={canvasSizeMm}
         onCanvasSizeChange={onCanvasSizeChange}
       />
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={() => clearCanvasRef.current?.()}
+          className="border border-slate/40 text-slate-light font-mono text-sm px-4 py-2 rounded hover:border-accent hover:text-accent transition-colors"
+        >
+          Clear canvas
+        </button>
+      </div>
       <div className="max-w-full overflow-x-auto">
         <div
           ref={containerRef}

@@ -33,23 +33,23 @@ export function StampSizeSelector({
             <input
               type="radio"
               name="stamp-base-shape"
-              value="square"
-              checked={baseShape === "square"}
-              onChange={() => onBaseShapeChange("square")}
-              className="accent-accent"
-            />
-            Square
-          </label>
-          <label className={radioLabelClassName}>
-            <input
-              type="radio"
-              name="stamp-base-shape"
               value="round"
               checked={baseShape === "round"}
               onChange={() => onBaseShapeChange("round")}
               className="accent-accent"
             />
             Round
+          </label>
+          <label className={radioLabelClassName}>
+            <input
+              type="radio"
+              name="stamp-base-shape"
+              value="square"
+              checked={baseShape === "square"}
+              onChange={() => onBaseShapeChange("square")}
+              className="accent-accent"
+            />
+            Square
           </label>
         </div>
       </fieldset>

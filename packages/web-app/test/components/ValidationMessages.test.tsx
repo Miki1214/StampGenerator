@@ -22,7 +22,30 @@ describe("ValidationMessages", () => {
     expect(messages[1].textContent).toBe("Feature too narrow");
   });
 
-  it("renders nothing when given an ok validation result", () => {
+  it("renders warnings when the result is ok but has warnings", () => {
+    render(
+      <ValidationMessages
+        result={{
+          ok: true,
+          warnings: [
+            {
+              code: "FEATURE_TOO_NARROW",
+              severity: "warning",
+              message:
+                "A feature is narrower than the minimum size of 0.3mm — it might not be represented correctly",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Warnings")).toBeTruthy();
+    const messages = screen.getAllByRole("listitem");
+    expect(messages).toHaveLength(1);
+    expect(messages[0].textContent).toMatch(/might not be represented/i);
+  });
+
+  it("renders nothing when given an ok validation result with no warnings", () => {
     const { container } = render(
       <ValidationMessages result={{ ok: true }} />,
     );

@@ -24,8 +24,6 @@ export class ShapeValidator implements ShapeValidatorContract {
   }
 
   validate(shapes: PathShapeSet, rules: ValidationRules): ValidationResult {
-    const issues: ValidationIssue[] = [];
-
     if (shapes.length === 0) {
       return {
         ok: false,
@@ -38,20 +36,20 @@ export class ShapeValidator implements ShapeValidatorContract {
       };
     }
 
+    const warnings: ValidationIssue[] = [];
+
     for (const shape of shapes) {
       const minDimension = minAabbDimension(shape.outer.points);
       if (minDimension < rules.minFeatureSizeMm) {
-        issues.push({
+        warnings.push({
           code: "FEATURE_TOO_NARROW",
-          message: `A feature is narrower than the minimum size of ${rules.minFeatureSizeMm}mm`,
+          severity: "warning",
+          message: `A feature is narrower than the minimum size of ${rules.minFeatureSizeMm}mm — it might not be represented correctly`,
         });
       }
     }
 
-    if (issues.length === 0) {
-      return { ok: true };
-    }
-    return { ok: false, issues };
+    return warnings.length > 0 ? { ok: true, warnings } : { ok: true };
   }
 }
 

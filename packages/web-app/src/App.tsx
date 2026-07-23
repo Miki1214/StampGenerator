@@ -22,7 +22,7 @@ const DEFAULT_OPTIONS: StampOptions = {
   designHeightMm: 2,
   canvasSizeUnits: DRAWING_CANVAS_SIZE_PX,
   canvasSizeMm: 50,
-  baseShape: "square",
+  baseShape: "round",
 };
 
 export function App() {
@@ -40,7 +40,9 @@ export function App() {
   const validationResult =
     pipeline.state.status === "invalid"
       ? { ok: false as const, issues: pipeline.state.issues }
-      : { ok: true as const };
+      : pipeline.state.status === "ready" && pipeline.state.warnings?.length
+        ? { ok: true as const, warnings: pipeline.state.warnings }
+        : { ok: true as const };
 
   const isPipelineBusy =
     pipeline.state.status === "importing" ||

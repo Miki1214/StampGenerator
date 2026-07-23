@@ -43,7 +43,7 @@ describe("useStampPipeline", () => {
     expect(validatingIdx).toBeLessThan(readyIdx);
   });
 
-  it("transitions idle -> importing -> validating -> invalid on an SVG that fails validation and exposes the issues", async () => {
+  it("transitions idle -> importing -> validating -> ready with a warning for a feature narrower than minFeatureSizeMm", async () => {
     const statuses: string[] = [];
     const svg = `<svg xmlns="http://www.w3.org/2000/svg">
       <rect x="0" y="0" width="10" height="0.2" />
@@ -63,7 +63,7 @@ describe("useStampPipeline", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.state.status).toBe("invalid");
+      expect(result.current.state.status).toBe("ready");
     });
 
     expect(statuses).toContain("importing");
@@ -71,16 +71,51 @@ describe("useStampPipeline", () => {
     const idleIdx = statuses.indexOf("idle");
     const importingIdx = statuses.indexOf("importing");
     const validatingIdx = statuses.indexOf("validating");
-    const invalidIdx = statuses.lastIndexOf("invalid");
+    const readyIdx = statuses.lastIndexOf("ready");
     expect(idleIdx).toBeLessThan(importingIdx);
     expect(importingIdx).toBeLessThan(validatingIdx);
-    expect(validatingIdx).toBeLessThan(invalidIdx);
+    expect(validatingIdx).toBeLessThan(readyIdx);
+
+    expect(result.current.state.status).toBe("ready");
+    if (result.current.state.status !== "ready") {
+      return;
+    }
+    expect(result.current.state.warnings?.length).toBeGreaterThan(0);
+    expect(result.current.state.warnings![0].code).toMatch(/feature|narrow|min/i);
+    expect(result.current.state.warnings![0].message).toMatch(
+      /might not be represented/i,
+    );
+  });
+
+  it("transitions idle -> importing -> validating -> invalid on an empty SVG and exposes the issues", async () => {
+    const statuses: string[] = [];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg"></svg>`;
+    const file = new File([svg], "empty.svg", { type: "image/svg+xml" });
+
+    const { result } = renderHook(() => {
+      const pipeline = useStampPipeline();
+      statuses.push(pipeline.state.status);
+      return pipeline;
+    });
+
+    expect(result.current.state.status).toBe("idle");
+
+    await act(async () => {
+      result.current.importFromSvg(file);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("invalid");
+    });
+
+    expect(statuses).toContain("importing");
+    expect(statuses).toContain("validating");
 
     expect(result.current.state.status).toBe("invalid");
     if (result.current.state.status !== "invalid") {
       return;
     }
     expect(result.current.state.issues.length).toBeGreaterThan(0);
-    expect(result.current.state.issues[0].message.length).toBeGreaterThan(0);
+    expect(result.current.state.issues[0].message).toMatch(/empty/i);
   });
 });
