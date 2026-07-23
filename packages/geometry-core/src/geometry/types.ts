@@ -27,8 +27,8 @@ export interface StampOptions {
   baseShape: StampBaseShape;
   /**
    * Canvas-unit bbox to center the design against, instead of the design's
-   * own tight geometry bbox. Set by Text mode so top/bottom/border layout
-   * survives builder placement; Draw/SVG leave this unset (unchanged behavior).
+   * own tight geometry bbox. Set for Draw (incl. text painted on canvas) so
+   * top/bottom/border layout survives builder placement; SVG may leave unset.
    */
   designFrame?: DesignFrame;
 }

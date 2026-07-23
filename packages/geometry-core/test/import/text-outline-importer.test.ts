@@ -166,8 +166,18 @@ describe("TextOutlineImporter", () => {
     const cx = 200;
     const cy = 200;
     const radii = points.map((p) => Math.hypot(p.x - cx, p.y - cy));
-    // Glyphs sit near a common arc radius rather than along a straight baseline.
     const mean = radii.reduce((a, b) => a + b, 0) / radii.length;
     expect(mean).toBeGreaterThan(100);
+  });
+
+  it("loads the bundled seal, script, and display stamp fonts", () => {
+    const importer = new TextOutlineImporter();
+    for (const fontId of ["seal", "script", "display"] as const) {
+      const result = importer.import(
+        { text: "Aa", fontId, fontSizeMm: 40, ...frame },
+        0.2,
+      );
+      expect(result.rings.length).toBeGreaterThan(0);
+    }
   });
 });

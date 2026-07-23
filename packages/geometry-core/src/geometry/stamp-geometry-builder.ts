@@ -16,7 +16,10 @@ import { unionMeshes } from "./union";
 export class StampGeometryBuilder implements StampGeometryBuilderContract {
   build(shapes: PathShapeSet, opts: StampOptions): Mesh {
     const scaled = scaleToMm(shapes, opts);
-    const mirrored = mirrorShapes(scaled);
+    // When designFrame is set, mirror about the frame center (stamp axis),
+    // not the tight glyph bbox — otherwise border/offset text drifts sideways
+    // on the 3D stamp while still looking centered on the 2D canvas.
+    const mirrored = mirrorShapes(scaled, mirrorAxisX(opts));
     const design = extrudeShapes(mirrored, opts.designHeightMm);
     const designBox = getMeshBoundingBox(design);
 
@@ -75,4 +78,14 @@ function designCenterXY(
     x: ((frame.minX + frame.maxX) / 2) * factor,
     y: ((frame.minY + frame.maxY) / 2) * factor,
   };
+}
+
+/** Mirror axis in mm after scaleToMm; undefined → tight-bbox fallback. */
+function mirrorAxisX(opts: StampOptions): number | undefined {
+  if (!opts.designFrame) {
+    return undefined;
+  }
+  const factor = opts.canvasSizeMm / opts.canvasSizeUnits;
+  const frame = opts.designFrame;
+  return ((frame.minX + frame.maxX) / 2) * factor;
 }

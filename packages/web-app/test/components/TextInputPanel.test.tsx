@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { TextInputPanel } from "../../src/components/TextInputPanel";
+import {
+  MIN_TEXT_SIZE_MM,
+  TextInputPanel,
+} from "../../src/components/TextInputPanel";
 
 describe("TextInputPanel", () => {
   it("calls its import callback with the correct TextImportRequest on submit", () => {
@@ -17,18 +20,18 @@ describe("TextInputPanel", () => {
     fireEvent.change(screen.getByLabelText(/^text$/i), {
       target: { value: "HELLO" },
     });
-    fireEvent.change(screen.getByLabelText(/font/i), {
+    fireEvent.change(screen.getByLabelText(/^font$/i), {
       target: { value: "serif" },
     });
     fireEvent.change(screen.getByLabelText(/size/i), {
-      target: { value: "12" },
+      target: { value: "48" },
     });
     fireEvent.click(screen.getByRole("button", { name: /add text/i }));
 
     expect(onImport).toHaveBeenCalledWith({
       text: "HELLO",
       fontId: "serif",
-      fontSizeMm: 12,
+      fontSizeMm: 48,
       verticalAlign: "border",
       lineAlign: "center",
       frameUnits: 400,
@@ -36,7 +39,7 @@ describe("TextInputPanel", () => {
     });
   });
 
-  it("defaults to 30 mm size and around-the-border alignment on round stamps", () => {
+  it("defaults to 40 mm size and around-the-border alignment on round stamps", () => {
     const onImport = vi.fn();
 
     render(
@@ -47,7 +50,10 @@ describe("TextInputPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText(/size/i)).toHaveProperty("value", "30");
+    expect(screen.getByLabelText(/size/i)).toHaveProperty(
+      "value",
+      String(MIN_TEXT_SIZE_MM),
+    );
     expect(screen.getByLabelText(/vertical alignment/i)).toHaveProperty(
       "value",
       "border",
@@ -60,9 +66,37 @@ describe("TextInputPanel", () => {
 
     expect(onImport).toHaveBeenCalledWith(
       expect.objectContaining({
-        fontSizeMm: 30,
+        fontSizeMm: MIN_TEXT_SIZE_MM,
         verticalAlign: "border",
       }),
+    );
+  });
+
+  it("clamps size below the printable minimum up to 40 mm", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "Hi" },
+    });
+    fireEvent.change(screen.getByLabelText(/size/i), {
+      target: { value: "12" },
+    });
+    expect(screen.getByLabelText(/size/i)).toHaveProperty(
+      "value",
+      String(MIN_TEXT_SIZE_MM),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
+    expect(onImport).toHaveBeenCalledWith(
+      expect.objectContaining({ fontSizeMm: MIN_TEXT_SIZE_MM }),
     );
   });
 
@@ -131,5 +165,28 @@ describe("TextInputPanel", () => {
         frameUnits: 400,
       }),
     );
+  });
+
+  it("shows a font preview that updates with the selected font and text", () => {
+    render(
+      <TextInputPanel
+        onImport={() => {}}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    const preview = screen.getByLabelText(/font preview/i);
+    expect(preview.textContent).toContain("Aa Bb Cc");
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "Kimi" },
+    });
+    expect(preview.textContent).toBe("Kimi");
+
+    fireEvent.change(screen.getByLabelText(/^font$/i), {
+      target: { value: "serif" },
+    });
+    expect(preview.style.fontFamily).toContain("--font-stamp-serif");
   });
 });

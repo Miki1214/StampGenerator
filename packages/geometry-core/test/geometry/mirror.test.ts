@@ -37,4 +37,28 @@ describe("mirrorShapes", () => {
     expect(mirrored[0].holes).toHaveLength(0);
     expect(mirrored[0].outer.points).toEqual(expectedPoints);
   });
+
+  it("mirrors around an explicit centerX (design frame), not the tight bbox", () => {
+    // Small square on the left of a 100-wide frame. Tight bbox center is 15;
+    // frame center is 50. Mirroring about the frame must land it on the right.
+    const shapes: PathShapeSet = [
+      {
+        outer: {
+          points: [
+            { x: 10, y: 40 },
+            { x: 20, y: 40 },
+            { x: 20, y: 60 },
+            { x: 10, y: 60 },
+          ],
+        },
+        holes: [],
+      },
+    ];
+
+    const mirrored = mirrorShapes(shapes, 50);
+    const xs = mirrored[0].outer.points.map((p) => p.x);
+
+    expect(Math.min(...xs)).toBeCloseTo(80, 5);
+    expect(Math.max(...xs)).toBeCloseTo(90, 5);
+  });
 });

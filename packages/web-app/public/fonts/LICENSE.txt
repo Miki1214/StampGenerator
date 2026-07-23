@@ -3,3 +3,21 @@ Copyright 2022 The Noto Project Authors
 Licensed under the SIL Open Font License, Version 1.1
 https://scripts.sil.org/OFL
 Source: https://github.com/googlefonts/noto-fonts
+
+Cinzel
+Copyright 2012 The Cinzel Project Authors
+Licensed under the SIL Open Font License, Version 1.1
+https://scripts.sil.org/OFL
+Source: https://github.com/google/fonts (ofl/cinzel)
+
+Great Vibes
+Copyright (c) 2015, TypeSETit, LLC (typesetit@att.net)
+Licensed under the SIL Open Font License, Version 1.1
+https://scripts.sil.org/OFL
+Source: https://github.com/google/fonts (ofl/greatvibes)
+
+Lobster
+Copyright (c) 2010, Pablo Impallari (www.impallari.com)
+Licensed under the SIL Open Font License, Version 1.1
+https://scripts.sil.org/OFL
+Source: https://github.com/google/fonts (ofl/lobster)

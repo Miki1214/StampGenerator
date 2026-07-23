@@ -12,6 +12,12 @@ import type {
 export const BUNDLED_FONT_FILES: Record<BundledFontId, string> = {
   sans: "NotoSans-Regular.ttf",
   serif: "NotoSerif-Regular.ttf",
+  /** Formal engraved / wax-seal capitals (Cinzel). */
+  seal: "Cinzel-Regular.ttf",
+  /** Elegant calligraphy for seals (Great Vibes). */
+  script: "GreatVibes-Regular.ttf",
+  /** Bold display script popular on stamps & labels (Lobster). */
+  display: "Lobster-Regular.ttf",
 };
 
 export type BundledFontDataProvider = (fontId: BundledFontId) => ArrayBuffer;

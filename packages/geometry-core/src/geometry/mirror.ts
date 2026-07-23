@@ -1,16 +1,26 @@
 import type { PathShapeSet, PolygonWithHoles, Ring } from "../validate/types";
 
-export function mirrorShapes(shapes: PathShapeSet): PathShapeSet {
+/**
+ * Mirror shapes in X for stamp imprint (reads correctly when pressed).
+ * When `centerX` is omitted, uses the shape-set tight bbox center (Draw/SVG
+ * without a frame). When a design frame is in play, pass the frame's center
+ * X so circular / off-center layouts stay concentric with the stamp.
+ */
+export function mirrorShapes(
+  shapes: PathShapeSet,
+  centerX?: number,
+): PathShapeSet {
   if (shapes.length === 0) {
     return [];
   }
 
-  const centerX = boundingBoxCenterX(shapes);
+  const axisX =
+    centerX !== undefined ? centerX : boundingBoxCenterX(shapes);
 
   return shapes.map(
     (shape): PolygonWithHoles => ({
-      outer: mirrorRing(shape.outer, centerX),
-      holes: shape.holes.map((hole) => mirrorRing(hole, centerX)),
+      outer: mirrorRing(shape.outer, axisX),
+      holes: shape.holes.map((hole) => mirrorRing(hole, axisX)),
     }),
   );
 }

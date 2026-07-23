@@ -15,7 +15,12 @@ export interface ShapeImporter<TSource> {
   import(source: TSource, tolerance: number): RawPathSet;
 }
 
-export type BundledFontId = "sans" | "serif";
+export type BundledFontId =
+  | "sans"
+  | "serif"
+  | "seal"
+  | "script"
+  | "display";
 
 export type TextVerticalAlign =
   | "center"
