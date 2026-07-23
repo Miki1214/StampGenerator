@@ -31,15 +31,28 @@ const COLOR_BASE = new Color("#f0f3ee");
 const COLOR_HANDLE = new Color("#6b7c8f");
 
 /**
- * Exact default camera pose (world space, Z-up). Paste new values from the
+ * Exact camera poses (world space, Z-up). Paste new values from the
  * console `[StampPreview camera]` log — set 1:1, no remapping.
- * Used for Reset on the main view and as the locked inset pose.
  */
-const DEFAULT_CAMERA = {
+type CameraPose = {
+  position: { x: number; y: number; z: number };
+  target: { x: number; y: number; z: number };
+  up: { x: number; y: number; z: number };
+};
+
+/** Interactive main canvas — fit / Reset camera. */
+const MAIN_DEFAULT_CAMERA: CameraPose = {
+  position: { x: 9.768, y: -0.314, z: -203.317 },
+  target: { x: 9.771, y: 0.034, z: -43.518 },
+  up: { x: 0, y: 0, z: 1 },
+};
+
+/** Locked top-left inset — fixed product view. */
+const INSET_DEFAULT_CAMERA: CameraPose = {
   position: { x: 73.75, y: -238.066, z: 110.649 },
   target: { x: 30.388, y: -56.134, z: 51.388 },
   up: { x: 0, y: 0, z: 1 },
-} as const;
+};
 
 /**
  * Color by absolute height from the print bed. Design (~2mm) + base (~5mm)
@@ -121,10 +134,7 @@ function createRenderer(container: HTMLElement): WebGLRenderer | null {
   }
 }
 
-function applyFixedCameraPose(
-  camera: PerspectiveCamera,
-  pose: typeof DEFAULT_CAMERA,
-) {
+function applyFixedCameraPose(camera: PerspectiveCamera, pose: CameraPose) {
   camera.up.set(pose.up.x, pose.up.y, pose.up.z);
   camera.position.set(pose.position.x, pose.position.y, pose.position.z);
   camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
@@ -140,7 +150,7 @@ function applyFixedCameraPose(
 function applyOrbitCameraPose(
   camera: PerspectiveCamera,
   controls: OrbitControls,
-  pose: typeof DEFAULT_CAMERA,
+  pose: CameraPose,
 ) {
   camera.up.set(pose.up.x, pose.up.y, pose.up.z);
   camera.position.set(pose.position.x, pose.position.y, pose.position.z);
@@ -163,13 +173,13 @@ function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
-/** Logs the exact fields stored in DEFAULT_CAMERA — copy/paste 1:1. */
+/** Logs the exact fields for MAIN_DEFAULT_CAMERA — copy/paste 1:1. */
 function logCameraPose(
   camera: PerspectiveCamera,
   controls: OrbitControls,
   reason: string,
 ) {
-  console.log(`[StampPreview camera:${reason}] paste into DEFAULT_CAMERA:`, {
+  console.log(`[StampPreview camera:${reason}] paste into MAIN_DEFAULT_CAMERA:`, {
     position: {
       x: round3(camera.position.x),
       y: round3(camera.position.y),
@@ -222,7 +232,11 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     const controls = new OrbitControls(mainCamera, mainRenderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.screenSpacePanning = false;
+    // Z-up + screenSpacePanning=false pans only in XY (world Z feels locked).
+    controls.screenSpacePanning = true;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
 
     const onControlsEnd = () => logCameraPose(mainCamera, controls, "end");
     controls.addEventListener("end", onControlsEnd);
@@ -239,7 +253,7 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     let disposed = false;
 
     const resetCamera = () => {
-      applyOrbitCameraPose(mainCamera, controls, DEFAULT_CAMERA);
+      applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
       logCameraPose(mainCamera, controls, "reset");
     };
     resetCameraRef.current = resetCamera;
@@ -264,8 +278,8 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
       mainScene.add(mainStamp);
       insetScene.add(insetStamp);
 
-      applyOrbitCameraPose(mainCamera, controls, DEFAULT_CAMERA);
-      applyFixedCameraPose(insetCamera, DEFAULT_CAMERA);
+      applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
+      applyFixedCameraPose(insetCamera, INSET_DEFAULT_CAMERA);
       logCameraPose(mainCamera, controls, "fit");
     };
 
