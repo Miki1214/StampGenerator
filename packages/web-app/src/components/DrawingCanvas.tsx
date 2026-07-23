@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { Canvas, PencilBrush, Point, util, type FabricObject } from "fabric";
 import type {
   FabricCanvasLike,
@@ -10,8 +10,11 @@ import { DRAWING_CANVAS_SIZE_PX } from "../lib/drawing-canvas";
 import { StampSizeSelector } from "./StampSizeSelector";
 import type { StampBaseShape } from "@stamp-generator/geometry-core";
 
+export interface DrawingCanvasHandle {
+  getFabricCanvasLike(): FabricCanvasLike;
+}
+
 export interface DrawingCanvasProps {
-  onImport: (canvas: FabricCanvasLike) => void;
   baseShape: StampBaseShape;
   canvasSizeMm: number;
   onBaseShapeChange: (shape: StampBaseShape) => void;
@@ -88,15 +91,23 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
   };
 }
 
-export function DrawingCanvas({
-  onImport,
-  baseShape,
-  canvasSizeMm,
-  onBaseShapeChange,
-  onCanvasSizeChange,
-}: DrawingCanvasProps) {
+export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
+  function DrawingCanvas(
+    { baseShape, canvasSizeMm, onBaseShapeChange, onCanvasSizeChange },
+    ref,
+  ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    getFabricCanvasLike(): FabricCanvasLike {
+      const canvas = fabricRef.current;
+      if (!canvas) {
+        return { getObjects: () => [] };
+      }
+      return toFabricCanvasLike(canvas);
+    },
+  }));
 
   useEffect(() => {
     const container = containerRef.current;
@@ -198,25 +209,7 @@ export function DrawingCanvas({
           baseShape === "round" ? "rounded-full" : "rounded"
         }`}
       />
-      <div>
-        <button
-          type="button"
-          className="border border-accent text-accent font-mono text-sm px-6 py-3 rounded hover:bg-accent/10 transition-colors"
-          onClick={() => {
-            const canvas = fabricRef.current;
-            if (!canvas) {
-              onImport({ getObjects: () => [] });
-              return;
-            }
-            onImport(toFabricCanvasLike(canvas));
-          }}
-        >
-          Import drawing
-        </button>
-        <p className="mt-2 font-mono text-xs text-slate">
-          Draw on the canvas, then import to enable STL download.
-        </p>
-      </div>
     </div>
   );
-}
+},
+);

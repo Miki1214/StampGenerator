@@ -29,10 +29,13 @@ export type PipelineState =
 
 export interface UseStampPipeline {
   state: PipelineState;
-  importFromSvg(file: File): void;
-  importFromCanvas(canvas: FabricCanvasLike): void;
-  importFromText(request: TextImportRequest): void;
-  exportStl(options: StampOptions): Promise<Uint8Array | null>;
+  importFromSvg(file: File): Promise<PathShapeSet | null>;
+  importFromCanvas(canvas: FabricCanvasLike): Promise<PathShapeSet | null>;
+  importFromText(request: TextImportRequest): Promise<PathShapeSet | null>;
+  exportStl(
+    options: StampOptions,
+    shapesOverride?: PathShapeSet,
+  ): Promise<Uint8Array | null>;
   download(options: StampOptions): void;
 }
 
@@ -57,7 +60,7 @@ export function useStampPipeline(): UseStampPipeline {
   const [state, setState] = useState<PipelineState>({ status: "idle" });
 
   const processRaw = useCallback(
-    async (loadRaw: () => Promise<RawPathSet> | RawPathSet) => {
+    async (loadRaw: () => Promise<RawPathSet> | RawPathSet): Promise<PathShapeSet | null> => {
       flushSync(() => {
         setState({ status: "importing" });
       });
@@ -73,7 +76,7 @@ export function useStampPipeline(): UseStampPipeline {
         const rawResult = validator.validateRaw(raw, DEFAULT_RULES);
         if (!rawResult.ok) {
           setState({ status: "invalid", issues: rawResult.issues });
-          return;
+          return null;
         }
 
         if (raw.rings.length === 0) {
@@ -86,17 +89,18 @@ export function useStampPipeline(): UseStampPipeline {
               },
             ],
           });
-          return;
+          return null;
         }
 
         const shapes = new ShapeCleaner().clean(raw);
         const result = validator.validate(shapes, DEFAULT_RULES);
         if (!result.ok) {
           setState({ status: "invalid", issues: result.issues });
-          return;
+          return null;
         }
 
         setState({ status: "ready", shapes });
+        return shapes;
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Import failed unexpectedly";
@@ -104,47 +108,50 @@ export function useStampPipeline(): UseStampPipeline {
           status: "invalid",
           issues: [{ code: "IMPORT_FAILED", message }],
         });
+        return null;
       }
     },
     [],
   );
 
   const importFromSvg = useCallback(
-    (file: File) => {
-      void processRaw(async () => {
+    (file: File) =>
+      processRaw(async () => {
         const text = await readFileAsText(file);
         return new SvgFileImporter().import(text, IMPORT_TOLERANCE);
-      });
-    },
+      }),
     [processRaw],
   );
 
   const importFromCanvas = useCallback(
-    (canvas: FabricCanvasLike) => {
-      void processRaw(() =>
+    (canvas: FabricCanvasLike) =>
+      processRaw(() =>
         new FabricCanvasImporter().import(canvas, IMPORT_TOLERANCE),
-      );
-    },
+      ),
     [processRaw],
   );
 
   const importFromText = useCallback(
-    (request: TextImportRequest) => {
-      void processRaw(async () => {
+    (request: TextImportRequest) =>
+      processRaw(async () => {
         await ensureBundledFontsLoaded();
         return new TextOutlineImporter().import(request, IMPORT_TOLERANCE);
-      });
-    },
+      }),
     [processRaw],
   );
 
   const exportStl = useCallback(
-    async (options: StampOptions): Promise<Uint8Array | null> => {
-      if (state.status !== "ready") {
+    async (
+      options: StampOptions,
+      shapesOverride?: PathShapeSet,
+    ): Promise<Uint8Array | null> => {
+      const shapes =
+        shapesOverride ?? (state.status === "ready" ? state.shapes : null);
+      if (!shapes) {
         return null;
       }
       await ensureStampHardwareLoaded();
-      const mesh = new StampGeometryBuilder().build(state.shapes, options);
+      const mesh = new StampGeometryBuilder().build(shapes, options);
       return new BinaryStlExporter().export(mesh);
     },
     [state],

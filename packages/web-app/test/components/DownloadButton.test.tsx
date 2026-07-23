@@ -59,6 +59,21 @@ describe("DownloadButton", () => {
     ).toBe(false);
   });
 
+  it("can be enabled via the disabled override even when the pipeline is idle", () => {
+    render(
+      <DownloadButton
+        state={{ status: "idle" }}
+        disabled={false}
+        onDownload={vi.fn(() => new Uint8Array([1]))}
+      />,
+    );
+
+    expect(
+      (screen.getByRole("button", { name: /download/i }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
   it("calls triggerDownload with a non-empty byte array when clicked in the ready state", async () => {
     const bytes = new Uint8Array([1, 2, 3, 4]);
 

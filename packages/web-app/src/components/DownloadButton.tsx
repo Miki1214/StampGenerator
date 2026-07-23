@@ -5,11 +5,16 @@ export type { PipelineState };
 
 export interface DownloadButtonProps {
   state: PipelineState;
-  onDownload: () => Uint8Array | Promise<Uint8Array>;
+  onDownload: () => Uint8Array | Promise<Uint8Array | null> | null;
+  disabled?: boolean;
 }
 
-export function DownloadButton({ state, onDownload }: DownloadButtonProps) {
-  const disabled = state.status !== "ready";
+export function DownloadButton({
+  state,
+  onDownload,
+  disabled: disabledOverride,
+}: DownloadButtonProps) {
+  const disabled = disabledOverride ?? state.status !== "ready";
 
   return (
     <button
@@ -17,6 +22,9 @@ export function DownloadButton({ state, onDownload }: DownloadButtonProps) {
       disabled={disabled}
       onClick={() => {
         void Promise.resolve(onDownload()).then((bytes) => {
+          if (!bytes || bytes.length === 0) {
+            return;
+          }
           triggerDownload(bytes, "stamp.stl");
         });
       }}

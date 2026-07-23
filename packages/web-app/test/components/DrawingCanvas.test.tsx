@@ -1,19 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
-import { StrictMode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { StrictMode, createRef } from "react";
+import { render, waitFor } from "@testing-library/react";
 import { Path } from "fabric";
 import {
   DrawingCanvas,
+  type DrawingCanvasHandle,
   __drawingCanvasTestHooks,
 } from "../../src/components/DrawingCanvas";
 
 describe("DrawingCanvas", () => {
-  it("calls onImport with a FabricCanvasLike when the import drawing control is clicked", () => {
-    const onImport = vi.fn();
+  it("exposes the live canvas through a ref as FabricCanvasLike", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
 
     render(
       <DrawingCanvas
-        onImport={onImport}
+        ref={ref}
         baseShape="square"
         canvasSizeMm={50}
         onBaseShapeChange={() => {}}
@@ -21,10 +22,11 @@ describe("DrawingCanvas", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /import drawing/i }));
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
 
-    expect(onImport).toHaveBeenCalledTimes(1);
-    const canvasArg = onImport.mock.calls[0][0];
+    const canvasArg = ref.current!.getFabricCanvasLike();
     expect(canvasArg).toEqual(
       expect.objectContaining({
         getObjects: expect.any(Function),
@@ -33,13 +35,13 @@ describe("DrawingCanvas", () => {
     expect(Array.isArray(canvasArg.getObjects())).toBe(true);
   });
 
-  it("exports drawn stroke points after a path is added under StrictMode", async () => {
-    const onImport = vi.fn();
+  it("exports drawn stroke points from the ref after a path is added under StrictMode", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
 
     render(
       <StrictMode>
         <DrawingCanvas
-          onImport={onImport}
+          ref={ref}
           baseShape="square"
           canvasSizeMm={50}
           onBaseShapeChange={() => {}}
@@ -62,10 +64,11 @@ describe("DrawingCanvas", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /import drawing/i }));
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
 
-    expect(onImport).toHaveBeenCalledTimes(1);
-    const strokes = onImport.mock.calls[0][0].getObjects();
+    const strokes = ref.current!.getFabricCanvasLike().getObjects();
     expect(strokes.length).toBeGreaterThan(0);
     // Stroke is expanded to a closed ribbon outline, not a bare centerline.
     expect(strokes[0].points.length).toBeGreaterThan(4);

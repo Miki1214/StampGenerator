@@ -24,21 +24,10 @@ export function Sidebar() {
             </li>
             <li>
               <a
-                href="#configure"
-                className="group inline-flex items-center gap-3 text-slate hover:text-accent transition-colors"
-              >
-                <span className="text-accent">02.</span>
-                <span className="border-b border-transparent group-hover:border-accent pb-0.5">
-                  Configure
-                </span>
-              </a>
-            </li>
-            <li>
-              <a
                 href="#export"
                 className="group inline-flex items-center gap-3 text-slate hover:text-accent transition-colors"
               >
-                <span className="text-accent">03.</span>
+                <span className="text-accent">02.</span>
                 <span className="border-b border-transparent group-hover:border-accent pb-0.5">
                   Export
                 </span>

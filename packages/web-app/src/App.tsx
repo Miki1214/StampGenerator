@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { StampOptions } from "@stamp-generator/geometry-core";
-import { ConfigPanel } from "./components/ConfigPanel";
 import { DownloadButton } from "./components/DownloadButton";
-import { DrawingCanvas } from "./components/DrawingCanvas";
+import {
+  DrawingCanvas,
+  type DrawingCanvasHandle,
+} from "./components/DrawingCanvas";
 import {
   InputModeTabs,
   type InputMode,
@@ -23,6 +25,7 @@ const DEFAULT_OPTIONS: StampOptions = {
 
 export function App() {
   const pipeline = useStampPipeline();
+  const drawingCanvasRef = useRef<DrawingCanvasHandle>(null);
   const [options, setOptions] = useState<StampOptions>(DEFAULT_OPTIONS);
   const [activeTab, setActiveTab] = useState<InputMode>("draw");
 
@@ -30,6 +33,22 @@ export function App() {
     pipeline.state.status === "invalid"
       ? { ok: false as const, issues: pipeline.state.issues }
       : { ok: true as const };
+
+  const isPipelineBusy =
+    pipeline.state.status === "importing" ||
+    pipeline.state.status === "validating";
+  const downloadDisabled =
+    activeTab === "draw" ? isPipelineBusy : pipeline.state.status !== "ready";
+
+  const handleDownload = async () => {
+    if (activeTab === "draw") {
+      const shapes = await pipeline.importFromCanvas(
+        drawingCanvasRef.current?.getFabricCanvasLike() ?? { getObjects: () => [] },
+      );
+      return pipeline.exportStl(options, shapes ?? undefined);
+    }
+    return pipeline.exportStl(options);
+  };
 
   return (
     <div className="min-h-screen bg-navy text-slate-light font-sans antialiased">
@@ -45,7 +64,7 @@ export function App() {
             <div className="mt-6">
               {activeTab === "draw" ? (
                 <DrawingCanvas
-                  onImport={pipeline.importFromCanvas}
+                  ref={drawingCanvasRef}
                   baseShape={options.baseShape}
                   canvasSizeMm={options.canvasSizeMm}
                   onBaseShapeChange={(baseShape) =>
@@ -73,25 +92,16 @@ export function App() {
           </div>
         </section>
 
-        <section id="configure" className="scroll-mt-24 mt-16">
-          <h2 className="font-mono text-sm text-accent mb-4">
-            <span className="mr-2">02.</span>Configure
-          </h2>
-          <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
-            <ConfigPanel value={options} onChange={setOptions} />
-          </div>
-        </section>
-
         <ValidationMessages result={validationResult} />
 
         <section id="export" className="scroll-mt-24 mt-16">
           <h2 className="font-mono text-sm text-accent mb-4">
-            <span className="mr-2">03.</span>Export
+            <span className="mr-2">02.</span>Export
           </h2>
           <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
             <p className="text-sm text-slate mb-6 leading-relaxed">
-              When your design validates, download a watertight STL ready for
-              3D printing.
+              Download a watertight STL ready for 3D printing. Draw mode
+              imports your canvas automatically when you download.
             </p>
             <p className="font-mono text-xs text-slate mb-4" aria-live="polite">
               Status:{" "}
@@ -109,9 +119,8 @@ export function App() {
             </p>
             <DownloadButton
               state={pipeline.state}
-              onDownload={async () =>
-                (await pipeline.exportStl(options)) ?? new Uint8Array()
-              }
+              disabled={downloadDisabled}
+              onDownload={handleDownload}
             />
           </div>
         </section>
