@@ -19,6 +19,8 @@ export interface DrawingCanvasProps {
   canvasSizeMm: number;
   onBaseShapeChange: (shape: StampBaseShape) => void;
   onCanvasSizeChange: (sizeMm: number) => void;
+  /** Fired when strokes are added, removed, or modified (for live preview). */
+  onSceneChange?: () => void;
 }
 
 const BRUSH_WIDTH = 8;
@@ -93,11 +95,19 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
 
 export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
   function DrawingCanvas(
-    { baseShape, canvasSizeMm, onBaseShapeChange, onCanvasSizeChange },
+    {
+      baseShape,
+      canvasSizeMm,
+      onBaseShapeChange,
+      onCanvasSizeChange,
+      onSceneChange,
+    },
     ref,
   ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
+  const onSceneChangeRef = useRef(onSceneChange);
+  onSceneChangeRef.current = onSceneChange;
 
   useImperativeHandle(ref, () => ({
     getFabricCanvasLike(): FabricCanvasLike {
@@ -139,14 +149,24 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     const undoStack: FabricObject[] = [];
     const redoStack: FabricObject[] = [];
 
+    const notifySceneChange = () => {
+      onSceneChangeRef.current?.();
+    };
+
     const handlePathCreated = (event: { path?: FabricObject }) => {
       if (!event.path) {
         return;
       }
       undoStack.push(event.path);
       redoStack.length = 0;
+      notifySceneChange();
     };
     canvas.on("path:created", handlePathCreated);
+
+    const handleObjectModified = () => {
+      notifySceneChange();
+    };
+    canvas.on("object:modified", handleObjectModified);
 
     const undo = () => {
       const object = undoStack.pop();
@@ -156,6 +176,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       canvas.remove(object);
       redoStack.push(object);
       canvas.requestRenderAll();
+      notifySceneChange();
     };
 
     const redo = () => {
@@ -166,6 +187,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       canvas.add(object);
       undoStack.push(object);
       canvas.requestRenderAll();
+      notifySceneChange();
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -186,6 +208,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       canvas.off("path:created", handlePathCreated);
+      canvas.off("object:modified", handleObjectModified);
       canvas.dispose();
       if (activeFabricCanvas === canvas) {
         activeFabricCanvas = null;
@@ -203,12 +226,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         canvasSizeMm={canvasSizeMm}
         onCanvasSizeChange={onCanvasSizeChange}
       />
-      <div
-        ref={containerRef}
-        className={`inline-block overflow-hidden border border-slate/30 bg-white ${
-          baseShape === "round" ? "rounded-full" : "rounded"
-        }`}
-      />
+      <div className="max-w-full overflow-x-auto">
+        <div
+          ref={containerRef}
+          className={`inline-block overflow-hidden border border-slate/30 bg-white ${
+            baseShape === "round" ? "rounded-full" : "rounded"
+          }`}
+        />
+      </div>
     </div>
   );
 },
