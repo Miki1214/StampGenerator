@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   StampOptions,
+  SvgPlacementOptions,
   TextImportRequest,
 } from "@stamp-generator/geometry-core";
 import { BrandHeader } from "./components/BrandHeader";
@@ -13,7 +14,10 @@ import {
 } from "./components/DrawingCanvas";
 import { StampPreview } from "./components/StampPreview";
 import { StampSizeSelector } from "./components/StampSizeSelector";
-import type { SvgImportSettings } from "./components/SvgInputPanel";
+import type {
+  SvgImportSettings,
+  SvgLayer,
+} from "./components/SvgInputPanel";
 import {
   DEFAULT_STAMP_FONT_ID,
   DEFAULT_STAMP_TEXT,
@@ -44,10 +48,24 @@ function withDesignFrame(options: StampOptions): StampOptions {
   };
 }
 
+function svgLabelFromFileName(fileName: string): string {
+  const base = fileName.replace(/\.svg$/i, "").trim();
+  return base.length > 0 ? base : "SVG";
+}
+
+function createSvgLayerId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `svg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function App() {
   const pipeline = useStampPipeline();
   const drawingCanvasRef = useRef<DrawingCanvasHandle>(null);
   const [options, setOptions] = useState<StampOptions>(DEFAULT_OPTIONS);
+  const [svgLayers, setSvgLayers] = useState<SvgLayer[]>([]);
+  const [selectedSvgId, setSelectedSvgId] = useState<string | null>(null);
 
   const drawOptions = withDesignFrame(options);
 
@@ -71,16 +89,62 @@ export function App() {
 
   const handleSvgImport = (settings: SvgImportSettings) => {
     void (async () => {
-      const file = new File([settings.svgText], "upload.svg", {
-        type: "image/svg+xml",
-      });
+      const file = new File(
+        [settings.svgText],
+        settings.fileName || "upload.svg",
+        { type: "image/svg+xml" },
+      );
       const shapes = await pipeline.importFromSvg(file, settings.placement);
       if (!shapes) {
         return;
       }
-      // Layer SVG paths onto the existing canvas (strokes + text stay).
-      drawingCanvasRef.current?.addOutlineShapes(shapes);
+      const id = createSvgLayerId();
+      drawingCanvasRef.current?.addOutlineShapes(shapes, { svgId: id });
+      setSvgLayers((current) => [
+        ...current,
+        {
+          id,
+          label: svgLabelFromFileName(settings.fileName),
+          svgText: settings.svgText,
+          placement: settings.placement,
+        },
+      ]);
+      setSelectedSvgId(id);
     })();
+  };
+
+  const handleSvgReposition = (placement: SvgPlacementOptions) => {
+    if (!selectedSvgId) {
+      return;
+    }
+    const layer = svgLayers.find((entry) => entry.id === selectedSvgId);
+    if (!layer) {
+      return;
+    }
+    void (async () => {
+      const file = new File([layer.svgText], `${layer.label}.svg`, {
+        type: "image/svg+xml",
+      });
+      const shapes = await pipeline.importFromSvg(file, placement);
+      if (!shapes) {
+        return;
+      }
+      drawingCanvasRef.current?.removeBySvgId(selectedSvgId);
+      drawingCanvasRef.current?.addOutlineShapes(shapes, {
+        svgId: selectedSvgId,
+      });
+      setSvgLayers((current) =>
+        current.map((entry) =>
+          entry.id === selectedSvgId ? { ...entry, placement } : entry,
+        ),
+      );
+    })();
+  };
+
+  const handleClearCanvas = () => {
+    drawingCanvasRef.current?.clear();
+    setSvgLayers([]);
+    setSelectedSvgId(null);
   };
 
   // Seed the draw canvas once with the default stamp text (StrictMode-safe).
@@ -143,6 +207,10 @@ export function App() {
             />
             <CollapsibleSvgPanel
               onImport={handleSvgImport}
+              onReposition={handleSvgReposition}
+              layers={svgLayers}
+              selectedId={selectedSvgId}
+              onSelect={setSelectedSvgId}
               frameUnits={options.canvasSizeUnits}
             />
             <StampSizeSelector
@@ -158,7 +226,7 @@ export function App() {
             <div className="flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => drawingCanvasRef.current?.clear()}
+                onClick={handleClearCanvas}
                 className="border border-slate/40 text-slate-light font-mono text-sm px-4 py-2 rounded hover:border-accent hover:text-accent transition-colors"
               >
                 Clear canvas

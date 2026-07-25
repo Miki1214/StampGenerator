@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SvgPlacementOptions } from "@stamp-generator/geometry-core";
-import { SvgDropZone } from "./SvgDropZone";
+import { SvgDropZone, type SvgDropPayload } from "./SvgDropZone";
+
+export interface SvgLayer {
+  id: string;
+  label: string;
+  svgText: string;
+  placement: SvgPlacementOptions;
+}
 
 export interface SvgImportSettings {
   svgText: string;
+  fileName: string;
   placement: SvgPlacementOptions;
 }
 
 export interface SvgInputPanelProps {
   onImport: (settings: SvgImportSettings) => void;
+  onReposition: (placement: SvgPlacementOptions) => void;
+  layers: SvgLayer[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
   frameUnits: number;
 }
 
@@ -27,26 +39,71 @@ function clampPercent(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function SvgInputPanel({ onImport, frameUnits }: SvgInputPanelProps) {
+function placementToPercents(placement: SvgPlacementOptions): {
+  sizePercent: number;
+  offsetXPercent: number;
+  offsetYPercent: number;
+} {
+  return {
+    sizePercent: Math.round(placement.sizeFraction * 100),
+    offsetXPercent: Math.round(placement.offsetXFraction * 100),
+    offsetYPercent: Math.round(placement.offsetYFraction * 100),
+  };
+}
+
+function buildPlacement(
+  frameUnits: number,
+  sizePercent: number,
+  offsetXPercent: number,
+  offsetYPercent: number,
+): SvgPlacementOptions {
+  return {
+    frameUnits,
+    sizeFraction: sizePercent / 100,
+    offsetXFraction: offsetXPercent / 100,
+    offsetYFraction: offsetYPercent / 100,
+  };
+}
+
+export function SvgInputPanel({
+  onImport,
+  onReposition,
+  layers,
+  selectedId,
+  onSelect,
+  frameUnits,
+}: SvgInputPanelProps) {
   const [sizePercent, setSizePercent] = useState(DEFAULT_SVG_SIZE_PERCENT);
   const [offsetXPercent, setOffsetXPercent] = useState(0);
   const [offsetYPercent, setOffsetYPercent] = useState(0);
 
-  const handleImport = (svgText: string) => {
+  const selectedLayer = layers.find((layer) => layer.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!selectedLayer) {
+      return;
+    }
+    const percents = placementToPercents(selectedLayer.placement);
+    setSizePercent(percents.sizePercent);
+    setOffsetXPercent(percents.offsetXPercent);
+    setOffsetYPercent(percents.offsetYPercent);
+  }, [selectedLayer]);
+
+  const readPlacement = (): SvgPlacementOptions => {
     const size = clampPercent(sizePercent, 5, 100);
     const offsetX = clampPercent(offsetXPercent, -50, 50);
     const offsetY = clampPercent(offsetYPercent, -50, 50);
     setSizePercent(size);
     setOffsetXPercent(offsetX);
     setOffsetYPercent(offsetY);
+    return buildPlacement(frameUnits, size, offsetX, offsetY);
+  };
+
+  const handleDrop = (payload: SvgDropPayload) => {
     onImport({
-      svgText,
-      placement: {
-        frameUnits,
-        sizeFraction: size / 100,
-        offsetXFraction: offsetX / 100,
-        offsetYFraction: offsetY / 100,
-      },
+      svgText: payload.svgText,
+      fileName: payload.fileName,
+      placement: readPlacement(),
     });
   };
 
@@ -112,7 +169,55 @@ export function SvgInputPanel({ onImport, frameUnits }: SvgInputPanelProps) {
           </span>
         </label>
       </div>
-      <SvgDropZone onImport={handleImport} />
+
+      {layers.length > 0 ? (
+        <div>
+          <p className={labelClassName}>Uploaded SVGs</p>
+          <ul
+            role="listbox"
+            aria-label="Uploaded SVGs"
+            className="mt-1.5 divide-y divide-slate/15 rounded border border-slate/30 overflow-hidden"
+          >
+            {layers.map((layer) => {
+              const selected = layer.id === selectedId;
+              return (
+                <li key={layer.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => onSelect(layer.id)}
+                    className={[
+                      "flex w-full items-center justify-between gap-3 px-3 py-2 font-mono text-sm text-left transition-colors",
+                      selected
+                        ? "bg-accent/15 text-accent"
+                        : "text-slate-light hover:bg-navy-darkest/60",
+                    ].join(" ")}
+                  >
+                    <span className="truncate">{layer.label}</span>
+                    <span className="shrink-0 text-xs text-slate/70">
+                      {Math.round(layer.placement.sizeFraction * 100)}%
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={!selectedId}
+          onClick={() => onReposition(readPlacement())}
+          className="border border-accent text-accent font-mono text-sm px-6 py-3 rounded hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        >
+          Reposition
+        </button>
+      </div>
+
+      <SvgDropZone onImport={handleDrop} />
     </div>
   );
 }

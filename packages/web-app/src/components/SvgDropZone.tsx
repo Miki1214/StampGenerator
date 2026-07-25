@@ -1,7 +1,12 @@
 import { useState } from "react";
 
+export interface SvgDropPayload {
+  svgText: string;
+  fileName: string;
+}
+
 export interface SvgDropZoneProps {
-  onImport: (svgText: string) => void;
+  onImport: (payload: SvgDropPayload) => void;
 }
 
 function isSvgFile(file: File): boolean {
@@ -35,7 +40,10 @@ export function SvgDropZone({ onImport }: SvgDropZoneProps) {
         setError(null);
         const reader = new FileReader();
         reader.onload = () => {
-          onImport(String(reader.result ?? ""));
+          onImport({
+            svgText: String(reader.result ?? ""),
+            fileName: file.name,
+          });
         };
         reader.readAsText(file);
       }}

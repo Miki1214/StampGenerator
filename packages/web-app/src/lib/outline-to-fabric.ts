@@ -9,6 +9,8 @@ export const STAMP_FILLED_OUTLINE_ROLE = "filled-outline";
 
 export type StampFabricObject = FabricObject & {
   stampRole?: string;
+  /** Groups polygons from one SVG import so they can be removed/repositioned. */
+  stampSvgId?: string;
 };
 
 /** Build Fabric polygons for cleaned text/SVG-like shapes (outers + hole punch-outs). */

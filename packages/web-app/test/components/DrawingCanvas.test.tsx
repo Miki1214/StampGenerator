@@ -137,4 +137,43 @@ describe("DrawingCanvas", () => {
     });
     expect(onSceneChange).toHaveBeenCalled();
   });
+
+  it("removes only polygons tagged with a given svgId", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    const shape = {
+      outer: {
+        points: [
+          { x: 10, y: 10 },
+          { x: 50, y: 10 },
+          { x: 50, y: 40 },
+          { x: 10, y: 40 },
+        ],
+      },
+      holes: [],
+    };
+
+    ref.current!.addOutlineShapes([shape], { svgId: "keep" });
+    ref.current!.addOutlineShapes([shape], { svgId: "drop" });
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(2);
+    });
+
+    ref.current!.removeBySvgId("drop");
+
+    await waitFor(() => {
+      const objects = __drawingCanvasTestHooks.getCanvas()?.getObjects() ?? [];
+      expect(objects).toHaveLength(1);
+      expect(
+        (objects[0] as { stampSvgId?: string }).stampSvgId,
+      ).toBe("keep");
+    });
+  });
 });

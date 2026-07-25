@@ -13,16 +13,24 @@ import {
   isFilledOutlineObject,
   outlineShapesToPolygons,
   STAMP_INK_COLOR,
+  type StampFabricObject,
 } from "../lib/outline-to-fabric";
 import {
   DRAWING_CANVAS_SIZE_PX,
   VIEWPORT_FRAME_CLASSNAME,
 } from "../lib/drawing-canvas";
 
+export interface AddOutlineShapesOptions {
+  /** Tag polygons so a later removeBySvgId can strip this import as a unit. */
+  svgId?: string;
+}
+
 export interface DrawingCanvasHandle {
   getFabricCanvasLike(): FabricCanvasLike;
-  /** Paint cleaned outline shapes (e.g. text glyphs) onto the canvas. */
-  addOutlineShapes(shapes: PathShapeSet): void;
+  /** Paint cleaned outline shapes (e.g. text glyphs / SVG) onto the canvas. */
+  addOutlineShapes(shapes: PathShapeSet, options?: AddOutlineShapesOptions): void;
+  /** Remove every polygon tagged with this SVG import id. */
+  removeBySvgId(svgId: string): void;
   /** Remove all strokes/outlines and notify live preview. */
   clear(): void;
 }
@@ -206,9 +214,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
   const clearCanvasRef = useRef<(() => void) | null>(null);
-  const addOutlineShapesRef = useRef<((shapes: PathShapeSet) => void) | null>(
-    null,
-  );
+  const addOutlineShapesRef = useRef<
+    | ((shapes: PathShapeSet, options?: AddOutlineShapesOptions) => void)
+    | null
+  >(null);
+  const removeBySvgIdRef = useRef<((svgId: string) => void) | null>(null);
   const onSceneChangeRef = useRef(onSceneChange);
   onSceneChangeRef.current = onSceneChange;
 
@@ -220,8 +230,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       }
       return toFabricCanvasLike(canvas);
     },
-    addOutlineShapes(shapes: PathShapeSet): void {
-      addOutlineShapesRef.current?.(shapes);
+    addOutlineShapes(shapes: PathShapeSet, options?: AddOutlineShapesOptions): void {
+      addOutlineShapesRef.current?.(shapes, options);
+    },
+    removeBySvgId(svgId: string): void {
+      removeBySvgIdRef.current?.(svgId);
     },
     clear(): void {
       clearCanvasRef.current?.();
@@ -301,16 +314,42 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     };
     clearCanvasRef.current = clearCanvas;
 
-    addOutlineShapesRef.current = (shapes: PathShapeSet) => {
+    addOutlineShapesRef.current = (
+      shapes: PathShapeSet,
+      options?: AddOutlineShapesOptions,
+    ) => {
       const polygons = outlineShapesToPolygons(shapes);
       if (polygons.length === 0) {
         return;
       }
       for (const polygon of polygons) {
+        if (options?.svgId) {
+          (polygon as StampFabricObject).stampSvgId = options.svgId;
+        }
         canvas.add(polygon);
         undoStack.push(polygon);
       }
       redoStack.length = 0;
+      canvas.requestRenderAll();
+      notifySceneChange();
+    };
+
+    removeBySvgIdRef.current = (svgId: string) => {
+      const tagged = canvas
+        .getObjects()
+        .filter(
+          (object) => (object as StampFabricObject).stampSvgId === svgId,
+        );
+      if (tagged.length === 0) {
+        return;
+      }
+      for (const object of tagged) {
+        canvas.remove(object);
+      }
+      const keep = (object: FabricObject) =>
+        (object as StampFabricObject).stampSvgId !== svgId;
+      undoStack.splice(0, undoStack.length, ...undoStack.filter(keep));
+      redoStack.splice(0, redoStack.length, ...redoStack.filter(keep));
       canvas.requestRenderAll();
       notifySceneChange();
     };
@@ -359,6 +398,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       canvas.off("object:modified", handleObjectModified);
       clearCanvasRef.current = null;
       addOutlineShapesRef.current = null;
+      removeBySvgIdRef.current = null;
       canvas.dispose();
       if (activeFabricCanvas === canvas) {
         activeFabricCanvas = null;

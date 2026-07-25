@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { SvgDropZone } from "../../src/components/SvgDropZone";
 
 describe("SvgDropZone", () => {
-  it("calls its import callback with the dropped file's raw text contents on drop", async () => {
+  it("calls its import callback with the dropped file's text and name", async () => {
     const onImport = vi.fn();
     const svgText =
       '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
@@ -18,7 +18,10 @@ describe("SvgDropZone", () => {
     });
 
     await vi.waitFor(() => {
-      expect(onImport).toHaveBeenCalledWith(svgText);
+      expect(onImport).toHaveBeenCalledWith({
+        svgText,
+        fileName: "stamp.svg",
+      });
     });
   });
 

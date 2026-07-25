@@ -1,0 +1,34 @@
+---
+description: Mandatory TDD protocol for all development changes
+alwaysApply: true
+---
+
+# Mandatory TDD for development changes
+
+**MANDATORY: Before writing or modifying production/implementation code, you MUST read and follow `.cursor/skills/tdd/SKILL.md` (the `/tdd` skill) in full.**
+
+Treat every feature, bugfix, refactor that changes behavior, and API/surface change as a TDD task. Do not start implementation until you have loaded that skill and are executing its Red → Green → Refactor phases.
+
+## When this applies
+
+- New features or behavior
+- Bug fixes
+- Refactors that change observable behavior
+- Changes to public APIs, hooks, components, or core packages
+
+## When this does NOT apply
+
+- Pure documentation (README, comments-only with no behavior change)
+- Rule/skill/config edits that do not change app or package runtime behavior
+- User explicitly says to skip TDD for this task
+
+## Hard requirements (from `/tdd`)
+
+1. Run baseline tests for the target module before edits
+2. Write EXACTLY ONE failing test first; run it and capture the real failure output
+3. Write only the minimal code to make that test pass; run tests again
+4. Refactor only after green; re-run the module suite
+5. NEVER write a test file and implementation in the same tool-call turn
+6. NEVER assume pass/fail without running the test runner
+
+This applies to YOU and to every subagent you spawn for development work. Include this rule and the path to `.cursor/skills/tdd/SKILL.md` in those subagent prompts.
