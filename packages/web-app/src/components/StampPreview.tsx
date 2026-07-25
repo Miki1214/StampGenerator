@@ -152,14 +152,25 @@ function addStampLights(scene: Scene, config: StampLightingConfig) {
   scene.add(hemi, ambient, key, fill, top, front);
 }
 
-function createRenderer(container: HTMLElement): WebGLRenderer | null {
+function createRenderer(
+  container: HTMLElement,
+  options: { alpha?: boolean } = {},
+): WebGLRenderer | null {
   try {
     const probe = document.createElement("canvas");
     const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
     if (!gl) {
       return null;
     }
-    const renderer = new WebGLRenderer({ antialias: true, canvas: probe });
+    const renderer = new WebGLRenderer({
+      antialias: true,
+      canvas: probe,
+      alpha: options.alpha === true,
+      premultipliedAlpha: false,
+    });
+    if (options.alpha) {
+      renderer.setClearColor(0x000000, 0);
+    }
     // Fill the container in CSS pixels. Drawing-buffer size is set via
     // setPixelRatio + setSize(…, false); without this, canvas intrinsic size
     // tracks the backing store (width*dpr) and browser zoom clips the view.
@@ -261,7 +272,8 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     const mainScene = new Scene();
     mainScene.background = new Color("#0a192f");
     const insetScene = new Scene();
-    insetScene.background = new Color("#020c1b");
+    // Transparent clear so the main preview shows through around the stamp.
+    insetScene.background = null;
 
     const mainCamera = new PerspectiveCamera(35, 1, 0.1, 2000);
     mainCamera.up.set(0, 0, 1);
@@ -269,7 +281,7 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     insetCamera.up.set(0, 0, 1);
 
     const mainRenderer = createRenderer(mainContainer);
-    const insetRenderer = createRenderer(insetContainer);
+    const insetRenderer = createRenderer(insetContainer, { alpha: true });
     if (!mainRenderer || !insetRenderer) {
       mainRenderer?.dispose();
       insetRenderer?.dispose();
@@ -450,7 +462,7 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
       />
       <div
         ref={insetRef}
-        className={`absolute top-3 left-3 z-10 w-[28%] min-w-[5.5rem] aspect-square overflow-hidden rounded border border-slate/35 bg-navy-darkest shadow-lg shadow-navy-darkest/50 pointer-events-none ${
+        className={`absolute top-3 left-3 z-10 w-[28%] min-w-[5.5rem] aspect-square overflow-hidden rounded border border-slate/25 bg-navy-darkest/35 shadow-lg shadow-navy-darkest/30 pointer-events-none backdrop-blur-[1px] ${
           showPlaceholder ? "invisible" : ""
         }`}
         aria-hidden
