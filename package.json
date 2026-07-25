@@ -14,14 +14,16 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "@types/eslint": "^9.6.1",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.1",
-    "@typescript-eslint/eslint-plugin": "^8.34.1",
-    "@typescript-eslint/parser": "^8.34.1",
-    "eslint": "^8.57.1",
-    "eslint-plugin-import": "^2.32.0",
+    "eslint": "^10.8.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "sharp": "0.35.3",
+    "jsdom": "^29.1.1"
   }
 }

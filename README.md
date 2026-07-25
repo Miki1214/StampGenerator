@@ -9,9 +9,38 @@ to Azure Static Web Apps.
 - `@stamp-generator/geometry-core` — pure TypeScript geometry pipeline (no DOM)
 - `@stamp-generator/web-app` — React + Vite UI
 
+## Prerequisites (uv + graphify)
+
+Agent / Cursor workflows in this repo expect a local
+[graphify](https://github.com/graphify-labs/graphify) knowledge graph
+(`graphify-out/`). Install both tools before exploring or changing code:
+
+```bash
+# 1. uv — installs/runs Python CLIs in isolated envs (needed to install graphify)
+#    https://docs.astral.sh/uv/getting-started/installation/
+#    Windows (PowerShell):
+irm https://astral.sh/uv/install.ps1 | iex
+#    macOS / Linux:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. graphifyy — PyPI package that provides the `graphify` CLI
+#    (maps the repo into graphify-out/ for agent navigation)
+uv tool install graphifyy
+uv tool update-shell   # if `graphify` is not on PATH, then open a new terminal
+
+# 3a. graphify install — registers the graphify skill with Cursor / other assistants
+graphify install
+# 3b. graphify update . — builds or refreshes this repo's knowledge graph (AST-only)
+graphify update .
+```
+
+Use `graphify query` / `path` / `explain` before broad codebase search; after
+code edits, run `graphify update .` again (AST-only).
+
 ## Local development
 
 ```bash
+npm install
 npm ci
 npm test
 npm run lint
