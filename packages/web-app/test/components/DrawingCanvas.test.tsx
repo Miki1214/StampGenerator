@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { StrictMode, createRef } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { Path } from "fabric";
 import {
   DrawingCanvas,
@@ -13,13 +13,7 @@ describe("DrawingCanvas", () => {
     const ref = createRef<DrawingCanvasHandle>();
 
     render(
-      <DrawingCanvas
-        ref={ref}
-        baseShape="round"
-        canvasSizeMm={50}
-        onBaseShapeChange={() => {}}
-        onCanvasSizeChange={() => {}}
-      />,
+      <DrawingCanvas ref={ref} baseShape="round" />,
     );
 
     await waitFor(() => {
@@ -40,13 +34,7 @@ describe("DrawingCanvas", () => {
 
     render(
       <StrictMode>
-        <DrawingCanvas
-          ref={ref}
-          baseShape="round"
-          canvasSizeMm={50}
-          onBaseShapeChange={() => {}}
-          onCanvasSizeChange={() => {}}
-        />
+        <DrawingCanvas ref={ref} baseShape="round" />
       </StrictMode>,
     );
 
@@ -82,13 +70,7 @@ describe("DrawingCanvas", () => {
     const ref = createRef<DrawingCanvasHandle>();
 
     render(
-      <DrawingCanvas
-        ref={ref}
-        baseShape="round"
-        canvasSizeMm={50}
-        onBaseShapeChange={() => {}}
-        onCanvasSizeChange={() => {}}
-      />,
+      <DrawingCanvas ref={ref} baseShape="round" />,
     );
 
     await waitFor(() => {
@@ -122,7 +104,7 @@ describe("DrawingCanvas", () => {
     expect(Math.max(...xs)).toBeCloseTo(50, 0);
   });
 
-  it("clears drawn strokes when Clear canvas is clicked and notifies onSceneChange", async () => {
+  it("clears drawn strokes via ref.clear() and notifies onSceneChange", async () => {
     const onSceneChange = vi.fn();
     const ref = createRef<DrawingCanvasHandle>();
 
@@ -130,9 +112,6 @@ describe("DrawingCanvas", () => {
       <DrawingCanvas
         ref={ref}
         baseShape="round"
-        canvasSizeMm={50}
-        onBaseShapeChange={() => {}}
-        onCanvasSizeChange={() => {}}
         onSceneChange={onSceneChange}
       />,
     );
@@ -151,7 +130,7 @@ describe("DrawingCanvas", () => {
     );
     expect(fabricCanvas.getObjects().length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /clear canvas/i }));
+    ref.current!.clear();
 
     await waitFor(() => {
       expect(fabricCanvas.getObjects()).toHaveLength(0);

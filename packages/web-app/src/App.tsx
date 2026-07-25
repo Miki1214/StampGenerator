@@ -15,6 +15,7 @@ import {
   type InputMode,
 } from "./components/InputModeTabs";
 import { StampPreview } from "./components/StampPreview";
+import { StampSizeSelector } from "./components/StampSizeSelector";
 import { SvgDropZone } from "./components/SvgDropZone";
 import { ValidationMessages } from "./components/ValidationMessages";
 import { useDebouncedStampPreview } from "./hooks/useDebouncedStampPreview";
@@ -99,76 +100,103 @@ export function App() {
       <BrandHeader />
 
       <main className="flex-1 px-6 py-8 sm:px-10 max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-          <section id="design">
-            <h2 className="font-mono text-sm text-accent mb-4">
-              <span className="mr-2">01.</span>Design
-            </h2>
-            <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
-              <InputModeTabs active={activeTab} onSelect={setActiveTab} />
-              <div className="mt-6">
-                {activeTab === "draw" ? (
-                  <>
-                    <CollapsibleTextPanel
-                      onImport={handleTextImport}
-                      baseShape={options.baseShape}
-                      frameUnits={options.canvasSizeUnits}
-                    />
-                    <DrawingCanvas
-                      ref={drawingCanvasRef}
-                      baseShape={options.baseShape}
-                      canvasSizeMm={options.canvasSizeMm}
-                      onBaseShapeChange={(baseShape) =>
-                        setOptions((current) => ({ ...current, baseShape }))
-                      }
-                      onCanvasSizeChange={(canvasSizeMm) =>
-                        setOptions((current) => ({ ...current, canvasSizeMm }))
-                      }
-                      onSceneChange={onSceneChange}
-                    />
-                  </>
-                ) : null}
-                {activeTab === "svg" ? (
-                  <SvgDropZone
-                    onImport={(svgText) => {
-                      const file = new File([svgText], "upload.svg", {
-                        type: "image/svg+xml",
-                      });
-                      void pipeline.importFromSvg(file);
-                    }}
-                  />
-                ) : null}
-              </div>
-              <ValidationMessages result={validationResult} />
-            </div>
-          </section>
-
-          <section id="preview">
-            <h2 className="font-mono text-sm text-accent mb-4">
-              <span className="mr-2">02.</span>Preview
-            </h2>
-            <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
-              <StampPreview
-                mesh={pipeline.previewMesh}
-                status={pipeline.previewStatus}
-              />
-              <p className="mt-4 font-mono text-xs text-slate" aria-live="polite">
-                Preview:{" "}
-                <span
-                  className={
-                    pipeline.previewStatus === "ready"
-                      ? "text-accent"
-                      : pipeline.previewStatus === "error"
-                        ? "text-red-400"
-                        : "text-slate-light"
+        <section id="config" aria-label="Stamp configuration">
+          <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
+            <InputModeTabs active={activeTab} onSelect={setActiveTab} />
+            {activeTab === "draw" ? (
+              <div className="mt-6 space-y-6">
+                <CollapsibleTextPanel
+                  onImport={handleTextImport}
+                  baseShape={options.baseShape}
+                  frameUnits={options.canvasSizeUnits}
+                />
+                <StampSizeSelector
+                  baseShape={options.baseShape}
+                  onBaseShapeChange={(baseShape) =>
+                    setOptions((current) => ({ ...current, baseShape }))
                   }
-                >
-                  {pipeline.previewStatus}
-                </span>
-              </p>
-            </div>
-          </section>
+                  canvasSizeMm={options.canvasSizeMm}
+                  onCanvasSizeChange={(canvasSizeMm) =>
+                    setOptions((current) => ({ ...current, canvasSizeMm }))
+                  }
+                />
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => drawingCanvasRef.current?.clear()}
+                    className="border border-slate/40 text-slate-light font-mono text-sm px-4 py-2 rounded hover:border-accent hover:text-accent transition-colors"
+                  >
+                    Clear canvas
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {/*
+          2×2 grid: headings share one row, viewports share the next so tops
+          stay locked. order-* keeps Design→Preview stacking on mobile.
+        */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 lg:gap-x-10 gap-y-4">
+          <h2
+            id="design"
+            className="order-1 font-mono text-sm text-accent self-end"
+          >
+            <span className="mr-2">01.</span>Design
+          </h2>
+          <h2
+            id="preview"
+            className="order-3 lg:order-2 font-mono text-sm text-accent self-end flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
+          >
+            <span>
+              <span className="mr-2">02.</span>Preview
+            </span>
+            <span className="font-mono text-xs text-slate" aria-live="polite">
+              Preview:{" "}
+              <span
+                className={
+                  pipeline.previewStatus === "ready"
+                    ? "text-accent"
+                    : pipeline.previewStatus === "error"
+                      ? "text-red-400"
+                      : "text-slate-light"
+                }
+              >
+                {pipeline.previewStatus}
+              </span>
+            </span>
+          </h2>
+
+          <div className="order-2 lg:order-3 bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
+            {activeTab === "draw" ? (
+              <DrawingCanvas
+                ref={drawingCanvasRef}
+                baseShape={options.baseShape}
+                onSceneChange={onSceneChange}
+              />
+            ) : null}
+            {activeTab === "svg" ? (
+              <SvgDropZone
+                onImport={(svgText) => {
+                  const file = new File([svgText], "upload.svg", {
+                    type: "image/svg+xml",
+                  });
+                  void pipeline.importFromSvg(file);
+                }}
+              />
+            ) : null}
+          </div>
+
+          <div className="order-4 bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
+            <StampPreview
+              mesh={pipeline.previewMesh}
+              status={pipeline.previewStatus}
+            />
+          </div>
         </div>
+
+        <ValidationMessages result={validationResult} />
 
         <section id="export" className="mt-10 pt-8 border-t border-slate/15">
           <h2 className="font-mono text-sm text-accent mb-4">

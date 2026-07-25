@@ -20,7 +20,7 @@ export function CollapsibleTextPanel({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mb-6 border-b border-slate/20 pb-4">
+    <div className="border-b border-slate/20 pb-4">
       <button
         type="button"
         aria-expanded={expanded}

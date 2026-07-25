@@ -14,20 +14,21 @@ import {
   outlineShapesToPolygons,
   STAMP_INK_COLOR,
 } from "../lib/outline-to-fabric";
-import { DRAWING_CANVAS_SIZE_PX } from "../lib/drawing-canvas";
-import { StampSizeSelector } from "./StampSizeSelector";
+import {
+  DRAWING_CANVAS_SIZE_PX,
+  VIEWPORT_FRAME_CLASSNAME,
+} from "../lib/drawing-canvas";
 
 export interface DrawingCanvasHandle {
   getFabricCanvasLike(): FabricCanvasLike;
   /** Paint cleaned outline shapes (e.g. text glyphs) onto the canvas. */
   addOutlineShapes(shapes: PathShapeSet): void;
+  /** Remove all strokes/outlines and notify live preview. */
+  clear(): void;
 }
 
 export interface DrawingCanvasProps {
   baseShape: StampBaseShape;
-  canvasSizeMm: number;
-  onBaseShapeChange: (shape: StampBaseShape) => void;
-  onCanvasSizeChange: (sizeMm: number) => void;
   /** Fired when strokes are added, removed, or modified (for live preview). */
   onSceneChange?: () => void;
 }
@@ -201,16 +202,7 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
 }
 
 export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
-  function DrawingCanvas(
-    {
-      baseShape,
-      canvasSizeMm,
-      onBaseShapeChange,
-      onCanvasSizeChange,
-      onSceneChange,
-    },
-    ref,
-  ) {
+  function DrawingCanvas({ baseShape, onSceneChange }, ref) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fabricRef = useRef<Canvas | null>(null);
   const clearCanvasRef = useRef<(() => void) | null>(null);
@@ -230,6 +222,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     },
     addOutlineShapes(shapes: PathShapeSet): void {
       addOutlineShapesRef.current?.(shapes);
+    },
+    clear(): void {
+      clearCanvasRef.current?.();
     },
   }));
 
@@ -374,30 +369,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
   }, []);
 
   return (
-    <div className="space-y-4">
-      <StampSizeSelector
-        baseShape={baseShape}
-        onBaseShapeChange={onBaseShapeChange}
-        canvasSizeMm={canvasSizeMm}
-        onCanvasSizeChange={onCanvasSizeChange}
+    <div className={`${VIEWPORT_FRAME_CLASSNAME} overflow-hidden`}>
+      <div
+        ref={containerRef}
+        className={`h-full w-full overflow-hidden border border-slate/30 bg-white ${
+          baseShape === "round" ? "rounded-full" : "rounded"
+        }`}
       />
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => clearCanvasRef.current?.()}
-          className="border border-slate/40 text-slate-light font-mono text-sm px-4 py-2 rounded hover:border-accent hover:text-accent transition-colors"
-        >
-          Clear canvas
-        </button>
-      </div>
-      <div className="max-w-full overflow-x-auto">
-        <div
-          ref={containerRef}
-          className={`inline-block overflow-hidden border border-slate/30 bg-white ${
-            baseShape === "round" ? "rounded-full" : "rounded"
-          }`}
-        />
-      </div>
     </div>
   );
 },

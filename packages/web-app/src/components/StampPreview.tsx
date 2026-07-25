@@ -18,6 +18,7 @@ import {
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { PreviewStatus } from "../hooks/useStampPipeline";
+import { VIEWPORT_FRAME_CLASSNAME } from "../lib/drawing-canvas";
 import { meshToThreeGeometry } from "../lib/mesh-to-three-geometry";
 
 export interface StampPreviewProps {
@@ -454,7 +455,9 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
         : "Draw or import a design to preview the stamp";
 
   return (
-    <div className="relative aspect-square w-full min-h-[16rem] overflow-hidden rounded-lg border border-slate/20 bg-navy-darkest">
+    <div
+      className={`${VIEWPORT_FRAME_CLASSNAME} overflow-hidden rounded-lg border border-slate/20 bg-navy-darkest`}
+    >
       <div
         ref={mainRef}
         className="absolute inset-0"
