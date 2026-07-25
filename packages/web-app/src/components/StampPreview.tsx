@@ -293,9 +293,12 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     let insetStamp: ThreeMesh | null = null;
     let frameId = 0;
     let disposed = false;
+    /** Only frame main orbit on first mesh after empty — rebuilds must not fight the user. */
+    let mainCameraFramed = false;
 
     const resetCamera = () => {
       applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
+      mainCameraFramed = true;
       logCameraPose(mainCamera, controls, "reset");
     };
     resetCameraRef.current = resetCamera;
@@ -312,6 +315,7 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
         insetStamp = null;
       }
       if (!next) {
+        mainCameraFramed = false;
         return;
       }
 
@@ -320,9 +324,12 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
       mainScene.add(mainStamp);
       insetScene.add(insetStamp);
 
-      applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
+      if (!mainCameraFramed) {
+        applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
+        mainCameraFramed = true;
+        logCameraPose(mainCamera, controls, "fit");
+      }
       applyFixedCameraPose(insetCamera, INSET_DEFAULT_CAMERA);
-      logCameraPose(mainCamera, controls, "fit");
     };
 
     replaceMeshRef.current = replaceStampMesh;
