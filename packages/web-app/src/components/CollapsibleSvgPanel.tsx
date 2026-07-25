@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { SvgPlacementOptions } from "@stamp-generator/geometry-core";
 import {
   SvgInputPanel,
   type SvgImportSettings,
@@ -8,7 +7,6 @@ import {
 
 export interface CollapsibleSvgPanelProps {
   onImport: (settings: SvgImportSettings) => void;
-  onReposition: (placement: SvgPlacementOptions) => void;
   onRemove: (id: string) => void;
   layers: SvgLayer[];
   selectedId: string | null;
@@ -19,7 +17,6 @@ export interface CollapsibleSvgPanelProps {
 /** SVG tools nested under Draw; collapsed by default to keep the canvas primary. */
 export function CollapsibleSvgPanel({
   onImport,
-  onReposition,
   onRemove,
   layers,
   selectedId,
@@ -48,7 +45,6 @@ export function CollapsibleSvgPanel({
         <div className="mt-4">
           <SvgInputPanel
             onImport={onImport}
-            onReposition={onReposition}
             onRemove={onRemove}
             layers={layers}
             selectedId={selectedId}

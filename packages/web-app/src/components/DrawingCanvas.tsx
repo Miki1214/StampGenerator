@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { Canvas, PencilBrush, Point, util, type FabricObject } from "fabric";
+import { Canvas, Group, PencilBrush, Point, util, type FabricObject } from "fabric";
 import type {
   FabricCanvasLike,
   FabricStrokeLike,
@@ -59,6 +59,10 @@ export const __drawingCanvasTestHooks = {
 };
 
 let activeFabricCanvas: Canvas | null = null;
+
+function isStampSvgObject(obj: FabricObject | undefined | null): boolean {
+  return Boolean(obj && (obj as StampFabricObject).stampSvgId);
+}
 
 function pathPointsInCanvasSpace(obj: FabricObject): Point2D[] {
   const pathObj = obj as FabricObject & {
@@ -178,32 +182,39 @@ export function toFabricCanvasLike(canvas: Canvas): FabricCanvasLike {
   return {
     getObjects(): FabricStrokeLike[] {
       return canvas.getObjects().flatMap((obj) => {
-        const rawPoints = objectPointsInCanvasSpace(obj);
-        if (rawPoints.length < 2) {
-          return [];
-        }
+        const leaves =
+          obj instanceof Group && typeof obj.getObjects === "function"
+            ? obj.getObjects()
+            : [obj];
 
-        // Filled outline shapes (text glyphs) are already closed rings.
-        if (isFilledOutlineObject(obj)) {
-          if (rawPoints.length < 3) {
+        return leaves.flatMap((leaf) => {
+          const rawPoints = objectPointsInCanvasSpace(leaf);
+          if (rawPoints.length < 2) {
             return [];
           }
-          return [{ type: String(obj.type ?? "polygon"), points: rawPoints }];
-        }
 
-        const strokeWidth =
-          typeof (obj as FabricObject & { strokeWidth?: number }).strokeWidth ===
-          "number"
-            ? Math.max(
-                (obj as FabricObject & { strokeWidth: number }).strokeWidth,
-                1,
-              )
-            : BRUSH_WIDTH;
-        const points = strokeToOutline(rawPoints, strokeWidth);
-        if (points.length < 4) {
-          return [];
-        }
-        return [{ type: String(obj.type ?? "path"), points }];
+          // Filled outline shapes (text glyphs / SVG rings) are already closed rings.
+          if (isFilledOutlineObject(leaf)) {
+            if (rawPoints.length < 3) {
+              return [];
+            }
+            return [{ type: String(leaf.type ?? "polygon"), points: rawPoints }];
+          }
+
+          const strokeWidth =
+            typeof (leaf as FabricObject & { strokeWidth?: number }).strokeWidth ===
+            "number"
+              ? Math.max(
+                  (leaf as FabricObject & { strokeWidth: number }).strokeWidth,
+                  1,
+                )
+              : BRUSH_WIDTH;
+          const points = strokeToOutline(rawPoints, strokeWidth);
+          if (points.length < 4) {
+            return [];
+          }
+          return [{ type: String(leaf.type ?? "path"), points }];
+        });
       });
     },
   };
@@ -299,6 +310,44 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     };
     canvas.on("object:modified", handleObjectModified);
 
+    const handleMouseDownBefore = (event: { e: MouseEvent }) => {
+      const { target } = canvas.findTarget(event.e);
+      if (isStampSvgObject(target)) {
+        canvas.isDrawingMode = false;
+        return;
+      }
+      const active = canvas.getActiveObject();
+      if (isStampSvgObject(active)) {
+        const pointer = canvas.getScenePoint(event.e);
+        const corner = active.findControl(pointer, false);
+        if (corner) {
+          canvas.isDrawingMode = false;
+          return;
+        }
+        canvas.discardActiveObject();
+      }
+      canvas.isDrawingMode = true;
+    };
+    canvas.on("mouse:down:before", handleMouseDownBefore);
+
+    const handleSelectionCleared = () => {
+      canvas.isDrawingMode = true;
+    };
+    canvas.on("selection:cleared", handleSelectionCleared);
+
+    // Drawing mode forces freeDrawingCursor on every move; restore SVG hover
+    // cursor after that so the pointer still reads as "movable" over imports.
+    const handleMouseMove = (event: { e: MouseEvent }) => {
+      if (!canvas.isDrawingMode) {
+        return;
+      }
+      const { target } = canvas.findTarget(event.e);
+      if (isStampSvgObject(target)) {
+        canvas.setCursor(target.hoverCursor || "move");
+      }
+    };
+    canvas.on("mouse:move", handleMouseMove);
+
     const clearCanvas = () => {
       const objects = canvas.getObjects().slice();
       if (objects.length === 0) {
@@ -322,12 +371,38 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       if (polygons.length === 0) {
         return;
       }
-      for (const polygon of polygons) {
-        if (options?.svgId) {
-          (polygon as StampFabricObject).stampSvgId = options.svgId;
+
+      if (options?.svgId) {
+        const group = new Group(polygons, {
+          selectable: true,
+          evented: true,
+          hasBorders: true,
+          hasControls: true,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockRotation: false,
+          hoverCursor: "move",
+          moveCursor: "move",
+        });
+        (group as StampFabricObject).stampSvgId = options.svgId;
+        group.setControlsVisibility({
+          tl: false,
+          tr: false,
+          bl: false,
+          br: false,
+          ml: false,
+          mr: false,
+          mt: false,
+          mb: false,
+          mtr: true,
+        });
+        canvas.add(group);
+        undoStack.push(group);
+      } else {
+        for (const polygon of polygons) {
+          canvas.add(polygon);
+          undoStack.push(polygon);
         }
-        canvas.add(polygon);
-        undoStack.push(polygon);
       }
       redoStack.length = 0;
       canvas.requestRenderAll();
@@ -396,6 +471,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       canvas.off("before:path:created", handleBeforePathCreated);
       canvas.off("path:created", handlePathCreated);
       canvas.off("object:modified", handleObjectModified);
+      canvas.off("mouse:down:before", handleMouseDownBefore);
+      canvas.off("selection:cleared", handleSelectionCleared);
+      canvas.off("mouse:move", handleMouseMove);
       clearCanvasRef.current = null;
       addOutlineShapesRef.current = null;
       removeBySvgIdRef.current = null;

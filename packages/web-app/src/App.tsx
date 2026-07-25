@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   StampOptions,
-  SvgPlacementOptions,
   TextImportRequest,
 } from "@stamp-generator/geometry-core";
 import { BrandHeader } from "./components/BrandHeader";
@@ -113,34 +112,6 @@ export function App() {
     })();
   };
 
-  const handleSvgReposition = (placement: SvgPlacementOptions) => {
-    if (!selectedSvgId) {
-      return;
-    }
-    const layer = svgLayers.find((entry) => entry.id === selectedSvgId);
-    if (!layer) {
-      return;
-    }
-    void (async () => {
-      const file = new File([layer.svgText], `${layer.label}.svg`, {
-        type: "image/svg+xml",
-      });
-      const shapes = await pipeline.importFromSvg(file, placement);
-      if (!shapes) {
-        return;
-      }
-      drawingCanvasRef.current?.removeBySvgId(selectedSvgId);
-      drawingCanvasRef.current?.addOutlineShapes(shapes, {
-        svgId: selectedSvgId,
-      });
-      setSvgLayers((current) =>
-        current.map((entry) =>
-          entry.id === selectedSvgId ? { ...entry, placement } : entry,
-        ),
-      );
-    })();
-  };
-
   const handleSvgRemove = (id: string) => {
     drawingCanvasRef.current?.removeBySvgId(id);
     setSvgLayers((current) => current.filter((entry) => entry.id !== id));
@@ -213,7 +184,6 @@ export function App() {
             />
             <CollapsibleSvgPanel
               onImport={handleSvgImport}
-              onReposition={handleSvgReposition}
               onRemove={handleSvgRemove}
               layers={svgLayers}
               selectedId={selectedSvgId}

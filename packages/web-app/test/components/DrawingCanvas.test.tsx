@@ -176,4 +176,372 @@ describe("DrawingCanvas", () => {
       ).toBe("keep");
     });
   });
+
+  it("adds an SVG import as a selectable group with borders, rotate enabled, and scale locked", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "star" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const group = __drawingCanvasTestHooks.getCanvas()!.getObjects()[0] as {
+      type?: string;
+      stampSvgId?: string;
+      selectable?: boolean;
+      evented?: boolean;
+      hasBorders?: boolean;
+      hasControls?: boolean;
+      lockScalingX?: boolean;
+      lockScalingY?: boolean;
+      lockRotation?: boolean;
+      isControlVisible?: (key: string) => boolean;
+    };
+
+    expect(group.type).toBe("group");
+    expect(group.stampSvgId).toBe("star");
+    expect(group.selectable).toBe(true);
+    expect(group.evented).toBe(true);
+    expect(group.hasBorders).toBe(true);
+    expect(group.hasControls).toBe(true);
+    expect(group.lockScalingX).toBe(true);
+    expect(group.lockScalingY).toBe(true);
+    expect(group.lockRotation).toBe(false);
+
+    expect(group.isControlVisible?.("mtr")).toBe(true);
+    expect(group.isControlVisible?.("tl")).toBe(false);
+    expect(group.isControlVisible?.("tr")).toBe(false);
+    expect(group.isControlVisible?.("bl")).toBe(false);
+    expect(group.isControlVisible?.("br")).toBe(false);
+    expect(group.isControlVisible?.("ml")).toBe(false);
+    expect(group.isControlVisible?.("mr")).toBe(false);
+    expect(group.isControlVisible?.("mt")).toBe(false);
+    expect(group.isControlVisible?.("mb")).toBe(false);
+  });
+
+  it("exports SVG group points shifted after the group is dragged", async () => {
+    const onSceneChange = vi.fn();
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(
+      <DrawingCanvas
+        ref={ref}
+        baseShape="round"
+        onSceneChange={onSceneChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "square" },
+    );
+
+    await waitFor(() => {
+      expect(ref.current!.getFabricCanvasLike().getObjects().length).toBe(1);
+    });
+
+    const before = ref.current!.getFabricCanvasLike().getObjects()[0].points;
+    const beforeMinX = Math.min(...before.map((p) => p.x));
+
+    onSceneChange.mockClear();
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+    group.set({ left: (group.left ?? 0) + 40, top: group.top ?? 0 });
+    group.setCoords();
+    fabricCanvas.fire("object:modified", { target: group });
+
+    const after = ref.current!.getFabricCanvasLike().getObjects()[0].points;
+    const afterMinX = Math.min(...after.map((p) => p.x));
+
+    expect(afterMinX).toBeCloseTo(beforeMinX + 40, 0);
+    expect(onSceneChange).toHaveBeenCalled();
+  });
+
+  it("exports SVG group points rotated after the group angle changes", async () => {
+    const onSceneChange = vi.fn();
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(
+      <DrawingCanvas
+        ref={ref}
+        baseShape="round"
+        onSceneChange={onSceneChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 100, y: 40 },
+              { x: 160, y: 40 },
+              { x: 160, y: 80 },
+              { x: 100, y: 80 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "rotated" },
+    );
+
+    await waitFor(() => {
+      expect(ref.current!.getFabricCanvasLike().getObjects().length).toBe(1);
+    });
+
+    const before = ref.current!.getFabricCanvasLike().getObjects()[0].points;
+    const beforeYs = before.map((p) => p.y);
+    const beforeYSpan = Math.max(...beforeYs) - Math.min(...beforeYs);
+
+    onSceneChange.mockClear();
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+    group.set({ angle: 90 });
+    group.setCoords();
+    fabricCanvas.fire("object:modified", { target: group });
+
+    const after = ref.current!.getFabricCanvasLike().getObjects()[0].points;
+    const afterXs = after.map((p) => p.x);
+    const afterXSpan = Math.max(...afterXs) - Math.min(...afterXs);
+
+    // 60×40 rect rotated 90° → width/height swap in axis-aligned bounds.
+    expect(afterXSpan).toBeCloseTo(beforeYSpan, 0);
+    expect(onSceneChange).toHaveBeenCalled();
+  });
+
+  it("moves multi-ring SVG polygons together when the group is dragged", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 50 },
+              { x: 10, y: 50 },
+            ],
+          },
+          holes: [
+            {
+              points: [
+                { x: 20, y: 20 },
+                { x: 40, y: 20 },
+                { x: 40, y: 40 },
+                { x: 20, y: 40 },
+              ],
+            },
+          ],
+        },
+      ],
+      { svgId: "donut" },
+    );
+
+    await waitFor(() => {
+      expect(ref.current!.getFabricCanvasLike().getObjects().length).toBe(2);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    expect(fabricCanvas.getObjects()).toHaveLength(1);
+    const group = fabricCanvas.getObjects()[0] as {
+      type?: string;
+      getObjects?: () => unknown[];
+      left?: number;
+      top?: number;
+      set: (opts: { left: number; top: number }) => void;
+      setCoords: () => void;
+    };
+    expect(group.type).toBe("group");
+    expect(group.getObjects?.()).toHaveLength(2);
+
+    const before = ref.current!.getFabricCanvasLike().getObjects();
+    const beforeOuterMinX = Math.min(...before[0].points.map((p) => p.x));
+    const beforeHoleMinX = Math.min(...before[1].points.map((p) => p.x));
+    const holeOffset = beforeHoleMinX - beforeOuterMinX;
+
+    group.set({ left: (group.left ?? 0) + 30, top: group.top ?? 0 });
+    group.setCoords();
+
+    const after = ref.current!.getFabricCanvasLike().getObjects();
+    const afterOuterMinX = Math.min(...after[0].points.map((p) => p.x));
+    const afterHoleMinX = Math.min(...after[1].points.map((p) => p.x));
+
+    expect(afterOuterMinX).toBeCloseTo(beforeOuterMinX + 30, 0);
+    expect(afterHoleMinX - afterOuterMinX).toBeCloseTo(holeOffset, 0);
+  });
+
+  it("selects an SVG group on pointer down and keeps drawing mode for empty canvas", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 80, y: 10 },
+              { x: 80, y: 80 },
+              { x: 10, y: 80 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "hit" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    expect(fabricCanvas.isDrawingMode).toBe(true);
+
+    const upper = fabricCanvas.upperCanvasEl;
+    const rect = upper.getBoundingClientRect();
+
+    const pointerOnSvg = new MouseEvent("mousedown", {
+      bubbles: true,
+      clientX: rect.left + 40,
+      clientY: rect.top + 40,
+      button: 0,
+    });
+    Object.defineProperty(pointerOnSvg, "target", { value: upper });
+
+    fabricCanvas._onMouseDown(pointerOnSvg as unknown as MouseEvent);
+
+    expect(fabricCanvas.isDrawingMode).toBe(false);
+    expect(fabricCanvas.getActiveObject()).toBe(fabricCanvas.getObjects()[0]);
+
+    fabricCanvas.discardActiveObject();
+    fabricCanvas.requestRenderAll();
+
+    const pointerOnEmpty = new MouseEvent("mousedown", {
+      bubbles: true,
+      clientX: rect.left + 350,
+      clientY: rect.top + 350,
+      button: 0,
+    });
+    Object.defineProperty(pointerOnEmpty, "target", { value: upper });
+
+    fabricCanvas._onMouseDown(pointerOnEmpty as unknown as MouseEvent);
+
+    expect(fabricCanvas.isDrawingMode).toBe(true);
+    expect(fabricCanvas.getActiveObject()).toBeUndefined();
+  });
+
+  it("shows the move cursor when hovering an SVG while drawing mode is on", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 80, y: 10 },
+              { x: 80, y: 80 },
+              { x: 10, y: 80 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "hover" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    expect(fabricCanvas.isDrawingMode).toBe(true);
+
+    const upper = fabricCanvas.upperCanvasEl;
+    const rect = upper.getBoundingClientRect();
+
+    const moveOverSvg = new MouseEvent("mousemove", {
+      bubbles: true,
+      clientX: rect.left + 40,
+      clientY: rect.top + 40,
+    });
+    Object.defineProperty(moveOverSvg, "target", { value: upper });
+    fabricCanvas._onMouseMove(moveOverSvg as unknown as MouseEvent);
+
+    expect(upper.style.cursor).toBe("move");
+
+    const moveOverEmpty = new MouseEvent("mousemove", {
+      bubbles: true,
+      clientX: rect.left + 350,
+      clientY: rect.top + 350,
+    });
+    Object.defineProperty(moveOverEmpty, "target", { value: upper });
+    fabricCanvas._onMouseMove(moveOverEmpty as unknown as MouseEvent);
+
+    expect(upper.style.cursor).toBe(fabricCanvas.freeDrawingCursor);
+  });
 });

@@ -17,7 +17,6 @@ export interface SvgImportSettings {
 
 export interface SvgInputPanelProps {
   onImport: (settings: SvgImportSettings) => void;
-  onReposition: (placement: SvgPlacementOptions) => void;
   onRemove: (id: string) => void;
   layers: SvgLayer[];
   selectedId: string | null;
@@ -40,35 +39,20 @@ function clampPercent(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function placementToPercents(placement: SvgPlacementOptions): {
-  sizePercent: number;
-  offsetXPercent: number;
-  offsetYPercent: number;
-} {
-  return {
-    sizePercent: Math.round(placement.sizeFraction * 100),
-    offsetXPercent: Math.round(placement.offsetXFraction * 100),
-    offsetYPercent: Math.round(placement.offsetYFraction * 100),
-  };
-}
-
 function buildPlacement(
   frameUnits: number,
   sizePercent: number,
-  offsetXPercent: number,
-  offsetYPercent: number,
 ): SvgPlacementOptions {
   return {
     frameUnits,
     sizeFraction: sizePercent / 100,
-    offsetXFraction: offsetXPercent / 100,
-    offsetYFraction: offsetYPercent / 100,
+    offsetXFraction: 0,
+    offsetYFraction: 0,
   };
 }
 
 export function SvgInputPanel({
   onImport,
-  onReposition,
   onRemove,
   layers,
   selectedId,
@@ -76,8 +60,6 @@ export function SvgInputPanel({
   frameUnits,
 }: SvgInputPanelProps) {
   const [sizePercent, setSizePercent] = useState(DEFAULT_SVG_SIZE_PERCENT);
-  const [offsetXPercent, setOffsetXPercent] = useState(0);
-  const [offsetYPercent, setOffsetYPercent] = useState(0);
 
   const selectedLayer = layers.find((layer) => layer.id === selectedId) ?? null;
 
@@ -85,20 +67,13 @@ export function SvgInputPanel({
     if (!selectedLayer) {
       return;
     }
-    const percents = placementToPercents(selectedLayer.placement);
-    setSizePercent(percents.sizePercent);
-    setOffsetXPercent(percents.offsetXPercent);
-    setOffsetYPercent(percents.offsetYPercent);
+    setSizePercent(Math.round(selectedLayer.placement.sizeFraction * 100));
   }, [selectedLayer]);
 
   const readPlacement = (): SvgPlacementOptions => {
     const size = clampPercent(sizePercent, 5, 100);
-    const offsetX = clampPercent(offsetXPercent, -50, 50);
-    const offsetY = clampPercent(offsetYPercent, -50, 50);
     setSizePercent(size);
-    setOffsetXPercent(offsetX);
-    setOffsetYPercent(offsetY);
-    return buildPlacement(frameUnits, size, offsetX, offsetY);
+    return buildPlacement(frameUnits, size);
   };
 
   const handleDrop = (payload: SvgDropPayload) => {
@@ -129,48 +104,11 @@ export function SvgInputPanel({
           Max width or height relative to the canvas
         </span>
       </label>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className={labelClassName}>
-          Position X (%)
-          <input
-            type="number"
-            aria-label="Position X (%)"
-            min={-50}
-            max={50}
-            step={1}
-            value={offsetXPercent}
-            onChange={(event) =>
-              setOffsetXPercent(
-                clampPercent(Number(event.target.value), -50, 50),
-              )
-            }
-            className={inputClassName}
-          />
-          <span className="mt-1 block font-mono text-xs text-slate/70">
-            0 = center, − left / + right
-          </span>
-        </label>
-        <label className={labelClassName}>
-          Position Y (%)
-          <input
-            type="number"
-            aria-label="Position Y (%)"
-            min={-50}
-            max={50}
-            step={1}
-            value={offsetYPercent}
-            onChange={(event) =>
-              setOffsetYPercent(
-                clampPercent(Number(event.target.value), -50, 50),
-              )
-            }
-            className={inputClassName}
-          />
-          <span className="mt-1 block font-mono text-xs text-slate/70">
-            0 = center, − up / + down
-          </span>
-        </label>
-      </div>
+
+      <p className="font-mono text-xs text-slate/70">
+        Click and drag an SVG on the canvas to reposition it; use the handle to
+        rotate.
+      </p>
 
       {layers.length > 0 ? (
         <div>
@@ -219,17 +157,6 @@ export function SvgInputPanel({
           </ul>
         </div>
       ) : null}
-
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          disabled={!selectedId}
-          onClick={() => onReposition(readPlacement())}
-          className="border border-accent text-accent font-mono text-sm px-6 py-3 rounded hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-        >
-          Reposition
-        </button>
-      </div>
 
       <SvgDropZone onImport={handleDrop} />
     </div>
