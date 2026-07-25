@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { StrictMode, createRef } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, fireEvent, screen } from "@testing-library/react";
 import { Path } from "fabric";
 import {
   DrawingCanvas,
@@ -543,5 +543,61 @@ describe("DrawingCanvas", () => {
     fabricCanvas._onMouseMove(moveOverEmpty as unknown as MouseEvent);
 
     expect(upper.style.cursor).toBe(fabricCanvas.freeDrawingCursor);
+  });
+
+  it("clears the SVG selection when the user clicks outside the canvas", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(
+      <div>
+        <button type="button">Outside</button>
+        <DrawingCanvas ref={ref} baseShape="round" />
+      </div>,
+    );
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 80, y: 10 },
+              { x: 80, y: 80 },
+              { x: 10, y: 80 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "blur" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const upper = fabricCanvas.upperCanvasEl;
+    const rect = upper.getBoundingClientRect();
+    const pointerOnSvg = new MouseEvent("mousedown", {
+      bubbles: true,
+      clientX: rect.left + 40,
+      clientY: rect.top + 40,
+      button: 0,
+    });
+    Object.defineProperty(pointerOnSvg, "target", { value: upper });
+    fabricCanvas._onMouseDown(pointerOnSvg as unknown as MouseEvent);
+
+    expect(fabricCanvas.getActiveObject()).toBe(fabricCanvas.getObjects()[0]);
+    expect(fabricCanvas.isDrawingMode).toBe(false);
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: /outside/i }));
+
+    expect(fabricCanvas.getActiveObject()).toBeUndefined();
+    expect(fabricCanvas.isDrawingMode).toBe(true);
   });
 });

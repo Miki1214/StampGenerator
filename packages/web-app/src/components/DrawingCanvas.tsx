@@ -348,6 +348,24 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     };
     canvas.on("mouse:move", handleMouseMove);
 
+    const handlePointerDownOutside = (event: PointerEvent) => {
+      const active = canvas.getActiveObject();
+      if (!isStampSvgObject(active)) {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (container.contains(target)) {
+        return;
+      }
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      canvas.isDrawingMode = true;
+    };
+    document.addEventListener("pointerdown", handlePointerDownOutside);
+
     const clearCanvas = () => {
       const objects = canvas.getObjects().slice();
       if (objects.length === 0) {
@@ -468,6 +486,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDownOutside);
       canvas.off("before:path:created", handleBeforePathCreated);
       canvas.off("path:created", handlePathCreated);
       canvas.off("object:modified", handleObjectModified);
