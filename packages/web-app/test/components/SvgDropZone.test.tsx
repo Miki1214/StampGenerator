@@ -40,4 +40,37 @@ describe("SvgDropZone", () => {
     expect(screen.getByRole("alert").textContent).toMatch(/svg/i);
     expect(onImport).not.toHaveBeenCalled();
   });
+
+  it("opens a file picker on click and imports the chosen SVG file", async () => {
+    const onImport = vi.fn();
+    const clickSpy = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => {});
+    const svgText =
+      '<svg xmlns="http://www.w3.org/2000/svg"><circle r="5"/></svg>';
+
+    render(<SvgDropZone onImport={onImport} />);
+
+    fireEvent.click(screen.getByRole("region", { name: /svg drop/i }));
+
+    expect(clickSpy).toHaveBeenCalled();
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(input!.accept).toMatch(/\.svg/i);
+
+    const file = new File([svgText], "picked.svg", { type: "image/svg+xml" });
+    fireEvent.change(input!, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(onImport).toHaveBeenCalledWith({
+        svgText,
+        fileName: "picked.svg",
+      });
+    });
+
+    clickSpy.mockRestore();
+  });
 });
