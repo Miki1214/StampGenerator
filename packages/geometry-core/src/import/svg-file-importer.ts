@@ -25,6 +25,12 @@ export class SvgFileImporter implements ShapeImporter<string> {
     walkElements(source, IDENTITY, (tag, attrs, transform) => {
       if (tag === "rect") {
         rings.push({ points: rectPoints(attrs, transform) });
+      } else if (tag === "circle" || tag === "ellipse") {
+        for (const points of ellipseRings(tag, attrs, transform, tolerance)) {
+          if (points.length > 0) {
+            rings.push({ points });
+          }
+        }
       } else if (tag === "path" && attrs.d) {
         for (const points of pathRings(attrs.d, transform, tolerance)) {
           if (points.length > 0) {
@@ -99,6 +105,86 @@ function rectPoints(
     apply(transform, { x: x + width, y: y + height }),
     apply(transform, { x, y: y + height }),
   ];
+}
+
+/** Filled ellipse/circle → one ring; stroke-only → outer+inner annulus rings. */
+function ellipseRings(
+  tag: string,
+  attrs: Record<string, string>,
+  transform: Matrix2D,
+  tolerance: number,
+): Point2D[][] {
+  const cx = Number(attrs.cx ?? 0);
+  const cy = Number(attrs.cy ?? 0);
+  const rx = tag === "circle" ? Number(attrs.r ?? 0) : Number(attrs.rx ?? 0);
+  const ry = tag === "circle" ? rx : Number(attrs.ry ?? attrs.rx ?? 0);
+  if (!(rx > 0) || !(ry > 0)) {
+    return [];
+  }
+
+  const rings: Point2D[][] = [];
+  if (hasPaintFill(attrs.fill)) {
+    rings.push(sampleEllipse(cx, cy, rx, ry, transform, tolerance));
+  } else if (hasStroke(attrs)) {
+    const half = strokeWidth(attrs) / 2;
+    rings.push(sampleEllipse(cx, cy, rx + half, ry + half, transform, tolerance));
+    const innerRx = rx - half;
+    const innerRy = ry - half;
+    if (innerRx > 0 && innerRy > 0) {
+      rings.push(sampleEllipse(cx, cy, innerRx, innerRy, transform, tolerance));
+    }
+  }
+  return rings;
+}
+
+function hasPaintFill(fill: string | undefined): boolean {
+  // SVG default fill is black when the attribute is omitted.
+  if (fill == null || fill.trim() === "") {
+    return true;
+  }
+  const normalized = fill.trim().toLowerCase();
+  return normalized !== "none" && normalized !== "transparent";
+}
+
+function hasStroke(attrs: Record<string, string>): boolean {
+  const stroke = attrs.stroke;
+  if (stroke == null || stroke.trim() === "") {
+    return false;
+  }
+  const normalized = stroke.trim().toLowerCase();
+  if (normalized === "none") {
+    return false;
+  }
+  return strokeWidth(attrs) > 0;
+}
+
+function strokeWidth(attrs: Record<string, string>): number {
+  return Number(attrs["stroke-width"] ?? attrs.strokeWidth ?? 1);
+}
+
+function sampleEllipse(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  transform: Matrix2D,
+  tolerance: number,
+): Point2D[] {
+  const rMax = Math.max(rx, ry);
+  const clamped = Math.min(1, Math.max(-1, 1 - tolerance / Math.max(rMax, tolerance)));
+  const maxStep = 2 * Math.acos(clamped);
+  const steps = Math.max(8, Math.ceil((2 * Math.PI) / maxStep));
+  const points: Point2D[] = [];
+  for (let i = 0; i < steps; i++) {
+    const angle = (2 * Math.PI * i) / steps;
+    points.push(
+      apply(transform, {
+        x: cx + rx * Math.cos(angle),
+        y: cy + ry * Math.sin(angle),
+      }),
+    );
+  }
+  return points;
 }
 
 function pathRings(

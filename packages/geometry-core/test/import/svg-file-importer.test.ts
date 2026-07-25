@@ -93,4 +93,30 @@ describe("SvgFileImporter", () => {
       /malformed|invalid|svg/i,
     );
   });
+
+  it("imports a stroke-only ellipse as outer and inner rings for the annular stroke", () => {
+    // Mirrors compass.svg: yellow ring is an <ellipse fill="none" stroke=…>.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="50" rx="30" ry="20" fill="none" stroke="#ff0" stroke-width="10" />
+    </svg>`;
+
+    const importer = new SvgFileImporter();
+    const result = importer.import(svg, 0.5);
+
+    expect(result.rings.length).toBe(2);
+    const radii = result.rings.map((ring) => {
+      const xs = ring.points.map((p) => p.x);
+      const ys = ring.points.map((p) => p.y);
+      return {
+        rx: (Math.max(...xs) - Math.min(...xs)) / 2,
+        ry: (Math.max(...ys) - Math.min(...ys)) / 2,
+      };
+    });
+    radii.sort((a, b) => b.rx - a.rx);
+    // Outer ≈ rx+sw/2, inner ≈ rx-sw/2
+    expect(radii[0].rx).toBeCloseTo(35, 0);
+    expect(radii[0].ry).toBeCloseTo(25, 0);
+    expect(radii[1].rx).toBeCloseTo(25, 0);
+    expect(radii[1].ry).toBeCloseTo(15, 0);
+  });
 });
