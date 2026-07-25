@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { StrictMode, createRef } from "react";
 import { render, waitFor, fireEvent, screen } from "@testing-library/react";
-import { Path } from "fabric";
+import { Path, Point } from "fabric";
 import {
   DrawingCanvas,
   type DrawingCanvasHandle,
@@ -420,6 +420,257 @@ describe("DrawingCanvas", () => {
 
     expect(afterOuterMinX).toBeCloseTo(beforeOuterMinX + 30, 0);
     expect(afterHoleMinX - afterOuterMinX).toBeCloseTo(holeOffset, 0);
+  });
+
+  it("snaps a dragged SVG group's center to the canvas mid-lines when nearby", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "snap-target" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+
+    // Drawing canvas is 400x400, so canvas center is (200, 200). Nudge the
+    // group's center to within the snap tolerance of the vertical mid-line
+    // only, leaving it far from the horizontal mid-line.
+    group.setPositionByOrigin(new Point(204, 130), "center", "center");
+    group.setCoords();
+    fabricCanvas.fire("object:moving", { target: group });
+
+    const center = group.getCenterPoint();
+    expect(center.x).toBe(200);
+    expect(center.y).toBe(130);
+  });
+
+  it("leaves a dragged SVG group's center untouched when far from the mid-lines", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "no-snap-target" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+
+    group.setPositionByOrigin(new Point(80, 90), "center", "center");
+    group.setCoords();
+    fabricCanvas.fire("object:moving", { target: group });
+
+    const center = group.getCenterPoint();
+    expect(center.x).toBe(80);
+    expect(center.y).toBe(90);
+  });
+
+  it("snaps a rotating SVG group's angle to 0 degrees when nearby", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "rotate-snap-target" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+
+    group.set({ angle: 3 });
+    fabricCanvas.fire("object:rotating", { target: group });
+
+    expect(group.angle).toBe(0);
+  });
+
+  it("leaves a rotating SVG group's angle untouched when far from a cardinal orientation", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "rotate-no-snap-target" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+
+    group.set({ angle: 47 });
+    fabricCanvas.fire("object:rotating", { target: group });
+
+    expect(group.angle).toBe(47);
+  });
+
+  it("draws a guide line on the canvas overlay when a dragged SVG snaps to a mid-line, and clears it when the drag ends", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "guide-target" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+    const strokeSpy = vi.spyOn(fabricCanvas.contextTop, "stroke");
+    const clearSpy = vi.spyOn(fabricCanvas, "clearContext");
+
+    group.setPositionByOrigin(new Point(204, 130), "center", "center");
+    group.setCoords();
+    fabricCanvas.fire("object:moving", { target: group });
+
+    expect(strokeSpy).toHaveBeenCalled();
+
+    fabricCanvas.fire("object:modified", { target: group });
+
+    expect(clearSpy).toHaveBeenCalledWith(fabricCanvas.contextTop);
+  });
+
+  it("draws a guide line on the canvas overlay when a rotating SVG snaps to a cardinal angle", async () => {
+    const ref = createRef<DrawingCanvasHandle>();
+
+    render(<DrawingCanvas ref={ref} baseShape="round" />);
+
+    await waitFor(() => {
+      expect(ref.current).not.toBeNull();
+    });
+
+    ref.current!.addOutlineShapes(
+      [
+        {
+          outer: {
+            points: [
+              { x: 10, y: 10 },
+              { x: 50, y: 10 },
+              { x: 50, y: 40 },
+              { x: 10, y: 40 },
+            ],
+          },
+          holes: [],
+        },
+      ],
+      { svgId: "rotate-guide-target" },
+    );
+
+    await waitFor(() => {
+      expect(__drawingCanvasTestHooks.getCanvas()?.getObjects().length).toBe(1);
+    });
+
+    const fabricCanvas = __drawingCanvasTestHooks.getCanvas()!;
+    const group = fabricCanvas.getObjects()[0];
+    const strokeSpy = vi.spyOn(fabricCanvas.contextTop, "stroke");
+
+    group.set({ angle: 3 });
+    fabricCanvas.fire("object:rotating", { target: group });
+
+    expect(strokeSpy).toHaveBeenCalled();
   });
 
   it("selects an SVG group on pointer down and keeps drawing mode for empty canvas", async () => {

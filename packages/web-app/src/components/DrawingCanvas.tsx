@@ -16,6 +16,12 @@ import {
   type StampFabricObject,
 } from "../lib/outline-to-fabric";
 import {
+  ROTATION_SNAP_TOLERANCE_DEG,
+  SNAP_TOLERANCE_PX,
+  snapAngleToCardinal,
+  snapCenterToCanvasMiddle,
+} from "../lib/snap-guides";
+import {
   DRAWING_CANVAS_SIZE_PX,
   VIEWPORT_FRAME_CLASSNAME,
 } from "../lib/drawing-canvas";
@@ -50,6 +56,47 @@ const BRUSH_DECIMATE_PX = 1.5;
 const SMOOTHING_MIN_POINTS = 6;
 const SMOOTHING_ITERATIONS = 3;
 const SMOOTHING_FACTOR = 0.4;
+
+const CANVAS_CENTER = {
+  x: DRAWING_CANVAS_SIZE_PX / 2,
+  y: DRAWING_CANVAS_SIZE_PX / 2,
+};
+
+/** Matches the app's accent color so guide lines read as UI chrome, not ink. */
+const GUIDE_LINE_COLOR = "#64ffda";
+const GUIDE_LINE_DASH = [4, 4];
+
+/** Erases any guide line(s) drawn on the transient overlay layer. */
+function clearGuides(canvas: Canvas): void {
+  canvas.clearContext(canvas.contextTop);
+}
+
+/**
+ * Draws a single dashed guide line across the full canvas extent on the
+ * transient overlay layer (`contextTop`), which Fabric repaints every frame
+ * without affecting canvas objects, the undo stack, or the exported scene.
+ */
+function drawGuideLine(
+  canvas: Canvas,
+  orientation: "vertical" | "horizontal",
+  position: number,
+): void {
+  const ctx = canvas.contextTop;
+  ctx.save();
+  ctx.strokeStyle = GUIDE_LINE_COLOR;
+  ctx.lineWidth = 1;
+  ctx.setLineDash(GUIDE_LINE_DASH);
+  ctx.beginPath();
+  if (orientation === "vertical") {
+    ctx.moveTo(position, 0);
+    ctx.lineTo(position, DRAWING_CANVAS_SIZE_PX);
+  } else {
+    ctx.moveTo(0, position);
+    ctx.lineTo(DRAWING_CANVAS_SIZE_PX, position);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
 
 /** Test-only access to the live Fabric canvas (StrictMode-safe mount). */
 export const __drawingCanvasTestHooks = {
@@ -306,9 +353,64 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     canvas.on("path:created", handlePathCreated);
 
     const handleObjectModified = () => {
+      clearGuides(canvas);
       notifySceneChange();
     };
     canvas.on("object:modified", handleObjectModified);
+
+    const handleObjectMoving = (event: { target?: FabricObject }) => {
+      const target = event.target;
+      if (!isStampSvgObject(target)) {
+        return;
+      }
+      clearGuides(canvas);
+      const center = target.getCenterPoint();
+      const snapped = snapCenterToCanvasMiddle(
+        center,
+        CANVAS_CENTER,
+        SNAP_TOLERANCE_PX,
+      );
+      if (!snapped.snappedX && !snapped.snappedY) {
+        return;
+      }
+      target.setPositionByOrigin(
+        new Point(snapped.x, snapped.y),
+        "center",
+        "center",
+      );
+      target.setCoords();
+      if (snapped.snappedX) {
+        drawGuideLine(canvas, "vertical", CANVAS_CENTER.x);
+      }
+      if (snapped.snappedY) {
+        drawGuideLine(canvas, "horizontal", CANVAS_CENTER.y);
+      }
+    };
+    canvas.on("object:moving", handleObjectMoving);
+
+    const handleObjectRotating = (event: { target?: FabricObject }) => {
+      const target = event.target;
+      if (!isStampSvgObject(target)) {
+        return;
+      }
+      clearGuides(canvas);
+      const snapped = snapAngleToCardinal(
+        target.angle,
+        ROTATION_SNAP_TOLERANCE_DEG,
+      );
+      if (!snapped.snapped) {
+        return;
+      }
+      target.rotate(snapped.angle);
+      const center = target.getCenterPoint();
+      const isHorizontal = snapped.angle === 0 || snapped.angle === 180;
+      drawGuideLine(
+        canvas,
+        isHorizontal ? "horizontal" : "vertical",
+        isHorizontal ? center.y : center.x,
+      );
+    };
+    canvas.on("object:rotating", handleObjectRotating);
 
     const handleMouseDownBefore = (event: { e: MouseEvent }) => {
       const { target } = canvas.findTarget(event.e);
@@ -332,8 +434,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
     const handleSelectionCleared = () => {
       canvas.isDrawingMode = true;
+      clearGuides(canvas);
     };
     canvas.on("selection:cleared", handleSelectionCleared);
+
+    const handleMouseUp = () => {
+      clearGuides(canvas);
+    };
+    canvas.on("mouse:up", handleMouseUp);
 
     // Drawing mode forces freeDrawingCursor on every move; restore SVG hover
     // cursor after that so the pointer still reads as "movable" over imports.
@@ -490,8 +598,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       canvas.off("before:path:created", handleBeforePathCreated);
       canvas.off("path:created", handlePathCreated);
       canvas.off("object:modified", handleObjectModified);
+      canvas.off("object:moving", handleObjectMoving);
+      canvas.off("object:rotating", handleObjectRotating);
       canvas.off("mouse:down:before", handleMouseDownBefore);
       canvas.off("selection:cleared", handleSelectionCleared);
+      canvas.off("mouse:up", handleMouseUp);
       canvas.off("mouse:move", handleMouseMove);
       clearCanvasRef.current = null;
       addOutlineShapesRef.current = null;
