@@ -4,19 +4,16 @@ import type {
   TextImportRequest,
 } from "@stamp-generator/geometry-core";
 import { BrandHeader } from "./components/BrandHeader";
+import { CollapsibleSvgPanel } from "./components/CollapsibleSvgPanel";
 import { CollapsibleTextPanel } from "./components/CollapsibleTextPanel";
 import { DownloadButton } from "./components/DownloadButton";
 import {
   DrawingCanvas,
   type DrawingCanvasHandle,
 } from "./components/DrawingCanvas";
-import {
-  InputModeTabs,
-  type InputMode,
-} from "./components/InputModeTabs";
 import { StampPreview } from "./components/StampPreview";
 import { StampSizeSelector } from "./components/StampSizeSelector";
-import { SvgDropZone } from "./components/SvgDropZone";
+import type { SvgImportSettings } from "./components/SvgInputPanel";
 import {
   DEFAULT_STAMP_FONT_ID,
   DEFAULT_STAMP_TEXT,
@@ -51,14 +48,11 @@ export function App() {
   const pipeline = useStampPipeline();
   const drawingCanvasRef = useRef<DrawingCanvasHandle>(null);
   const [options, setOptions] = useState<StampOptions>(DEFAULT_OPTIONS);
-  const [activeTab, setActiveTab] = useState<InputMode>("draw");
 
   const drawOptions = withDesignFrame(options);
-  const previewOptions = activeTab === "draw" ? drawOptions : options;
 
   const { onSceneChange } = useDebouncedStampPreview({
-    activeTab,
-    options: previewOptions,
+    options: drawOptions,
     drawingCanvasRef,
     pipeline,
   });
@@ -71,6 +65,20 @@ export function App() {
       }
       // Paint glyphs onto the same Fabric canvas as freehand strokes so both
       // share one design and the live preview matches what you see.
+      drawingCanvasRef.current?.addOutlineShapes(shapes);
+    })();
+  };
+
+  const handleSvgImport = (settings: SvgImportSettings) => {
+    void (async () => {
+      const file = new File([settings.svgText], "upload.svg", {
+        type: "image/svg+xml",
+      });
+      const shapes = await pipeline.importFromSvg(file, settings.placement);
+      if (!shapes) {
+        return;
+      }
+      // Layer SVG paths onto the existing canvas (strokes + text stay).
       drawingCanvasRef.current?.addOutlineShapes(shapes);
     })();
   };
@@ -111,19 +119,14 @@ export function App() {
   const isPipelineBusy =
     pipeline.state.status === "importing" ||
     pipeline.state.status === "validating";
-  const downloadDisabled =
-    activeTab === "draw" ? isPipelineBusy : pipeline.state.status !== "ready";
 
   const handleDownload = async () => {
-    if (activeTab === "draw") {
-      const shapes = await pipeline.importFromCanvas(
-        drawingCanvasRef.current?.getFabricCanvasLike() ?? {
-          getObjects: () => [],
-        },
-      );
-      return pipeline.exportStl(drawOptions, shapes ?? undefined);
-    }
-    return pipeline.exportStl(options);
+    const shapes = await pipeline.importFromCanvas(
+      drawingCanvasRef.current?.getFabricCanvasLike() ?? {
+        getObjects: () => [],
+      },
+    );
+    return pipeline.exportStl(drawOptions, shapes ?? undefined);
   };
 
   return (
@@ -132,36 +135,35 @@ export function App() {
 
       <main className="flex-1 px-6 py-8 sm:px-10 max-w-7xl mx-auto w-full">
         <section id="config" aria-label="Stamp configuration">
-          <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
-            <InputModeTabs active={activeTab} onSelect={setActiveTab} />
-            {activeTab === "draw" ? (
-              <div className="mt-6 space-y-6">
-                <CollapsibleTextPanel
-                  onImport={handleTextImport}
-                  baseShape={options.baseShape}
-                  frameUnits={options.canvasSizeUnits}
-                />
-                <StampSizeSelector
-                  baseShape={options.baseShape}
-                  onBaseShapeChange={(baseShape) =>
-                    setOptions((current) => ({ ...current, baseShape }))
-                  }
-                  canvasSizeMm={options.canvasSizeMm}
-                  onCanvasSizeChange={(canvasSizeMm) =>
-                    setOptions((current) => ({ ...current, canvasSizeMm }))
-                  }
-                />
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={() => drawingCanvasRef.current?.clear()}
-                    className="border border-slate/40 text-slate-light font-mono text-sm px-4 py-2 rounded hover:border-accent hover:text-accent transition-colors"
-                  >
-                    Clear canvas
-                  </button>
-                </div>
-              </div>
-            ) : null}
+          <div className="bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40 space-y-6">
+            <CollapsibleTextPanel
+              onImport={handleTextImport}
+              baseShape={options.baseShape}
+              frameUnits={options.canvasSizeUnits}
+            />
+            <CollapsibleSvgPanel
+              onImport={handleSvgImport}
+              frameUnits={options.canvasSizeUnits}
+            />
+            <StampSizeSelector
+              baseShape={options.baseShape}
+              onBaseShapeChange={(baseShape) =>
+                setOptions((current) => ({ ...current, baseShape }))
+              }
+              canvasSizeMm={options.canvasSizeMm}
+              onCanvasSizeChange={(canvasSizeMm) =>
+                setOptions((current) => ({ ...current, canvasSizeMm }))
+              }
+            />
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => drawingCanvasRef.current?.clear()}
+                className="border border-slate/40 text-slate-light font-mono text-sm px-4 py-2 rounded hover:border-accent hover:text-accent transition-colors"
+              >
+                Clear canvas
+              </button>
+            </div>
           </div>
         </section>
 
@@ -200,23 +202,11 @@ export function App() {
           </h2>
 
           <div className="order-2 lg:order-3 bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
-            {activeTab === "draw" ? (
-              <DrawingCanvas
-                ref={drawingCanvasRef}
-                baseShape={options.baseShape}
-                onSceneChange={onSceneChange}
-              />
-            ) : null}
-            {activeTab === "svg" ? (
-              <SvgDropZone
-                onImport={(svgText) => {
-                  const file = new File([svgText], "upload.svg", {
-                    type: "image/svg+xml",
-                  });
-                  void pipeline.importFromSvg(file);
-                }}
-              />
-            ) : null}
+            <DrawingCanvas
+              ref={drawingCanvasRef}
+              baseShape={options.baseShape}
+              onSceneChange={onSceneChange}
+            />
           </div>
 
           <div className="order-4 bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
@@ -256,7 +246,7 @@ export function App() {
             </div>
             <DownloadButton
               state={pipeline.state}
-              disabled={downloadDisabled}
+              disabled={isPipelineBusy}
               onDownload={handleDownload}
             />
           </div>

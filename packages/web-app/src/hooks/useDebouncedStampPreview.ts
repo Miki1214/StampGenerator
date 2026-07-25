@@ -1,24 +1,21 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { StampOptions } from "@stamp-generator/geometry-core";
 import type { DrawingCanvasHandle } from "../components/DrawingCanvas";
-import type { InputMode } from "../components/InputModeTabs";
 import type { UseStampPipeline } from "./useStampPipeline";
 
 const PREVIEW_DEBOUNCE_MS = 250;
 
 export interface UseDebouncedStampPreviewArgs {
-  activeTab: InputMode;
   options: StampOptions;
   drawingCanvasRef: RefObject<DrawingCanvasHandle | null>;
   pipeline: UseStampPipeline;
 }
 
 /**
- * Debounced live preview: draw-mode scene changes and options rebuild the full
- * stamp mesh; SVG rebuild when pipeline reaches ready or options change.
+ * Debounced live preview: canvas scene changes and options rebuild the full
+ * stamp mesh from the current Fabric drawing.
  */
 export function useDebouncedStampPreview({
-  activeTab,
   options,
   drawingCanvasRef,
   pipeline,
@@ -31,14 +28,7 @@ export function useDebouncedStampPreview({
   const pipelineRef = useRef(pipeline);
   pipelineRef.current = pipeline;
 
-  const readyShapes =
-    pipeline.state.status === "ready" ? pipeline.state.shapes : null;
-
   useEffect(() => {
-    if (activeTab !== "draw") {
-      return;
-    }
-
     const handle = window.setTimeout(() => {
       void (async () => {
         const canvas =
@@ -62,27 +52,7 @@ export function useDebouncedStampPreview({
     return () => {
       window.clearTimeout(handle);
     };
-  }, [activeTab, options, sceneEpoch, drawingCanvasRef]);
-
-  useEffect(() => {
-    if (activeTab === "draw") {
-      return;
-    }
-
-    const handle = window.setTimeout(() => {
-      void (async () => {
-        if (!readyShapes) {
-          pipelineRef.current.clearPreview();
-          return;
-        }
-        await pipelineRef.current.rebuildPreview(options, readyShapes);
-      })();
-    }, PREVIEW_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(handle);
-    };
-  }, [activeTab, options, readyShapes]);
+  }, [options, sceneEpoch, drawingCanvasRef]);
 
   return { onSceneChange };
 }

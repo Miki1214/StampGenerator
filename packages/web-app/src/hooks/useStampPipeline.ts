@@ -12,7 +12,9 @@ import {
   StampGeometryBuilder,
   type StampOptions,
   SvgFileImporter,
+  placePathsInFrame,
   TextOutlineImporter,
+  type SvgPlacementOptions,
   type TextImportRequest,
   type ValidationIssue,
 } from "@stamp-generator/geometry-core";
@@ -34,7 +36,10 @@ export interface UseStampPipeline {
   state: PipelineState;
   previewMesh: Mesh | null;
   previewStatus: PreviewStatus;
-  importFromSvg(file: File): Promise<PathShapeSet | null>;
+  importFromSvg(
+    file: File,
+    placement?: SvgPlacementOptions,
+  ): Promise<PathShapeSet | null>;
   importFromCanvas(canvas: FabricCanvasLike): Promise<PathShapeSet | null>;
   importFromText(request: TextImportRequest): Promise<PathShapeSet | null>;
   buildMesh(
@@ -156,10 +161,11 @@ export function useStampPipeline(): UseStampPipeline {
   );
 
   const importFromSvg = useCallback(
-    (file: File) =>
+    (file: File, placement?: SvgPlacementOptions) =>
       processRaw(async () => {
         const text = await readFileAsText(file);
-        return new SvgFileImporter().import(text, IMPORT_TOLERANCE);
+        const raw = new SvgFileImporter().import(text, IMPORT_TOLERANCE);
+        return placement ? placePathsInFrame(raw, placement) : raw;
       }),
     [processRaw],
   );

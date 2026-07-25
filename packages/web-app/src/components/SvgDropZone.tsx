@@ -40,7 +40,7 @@ export function SvgDropZone({ onImport }: SvgDropZoneProps) {
         reader.readAsText(file);
       }}
       className={[
-        "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-16 text-center transition-colors",
+        "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors",
         isDragging
           ? "border-accent bg-accent/5 text-accent"
           : "border-slate/40 text-slate hover:border-accent hover:text-slate-light",

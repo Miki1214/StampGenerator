@@ -12,6 +12,12 @@ export type {
 export { flattenArc, flattenCubicBezier } from "./import/curve-flatten";
 export { SvgFileImporter } from "./import/svg-file-importer";
 export {
+  placePathsInFrame,
+  rawPathBounds,
+  type PathBounds,
+  type SvgPlacementOptions,
+} from "./import/svg-placement";
+export {
   FabricCanvasImporter,
   type FabricCanvasLike,
   type FabricStrokeLike,
