@@ -2,6 +2,7 @@
 import type { Mesh } from "@stamp-generator/geometry-core";
 import {
   AmbientLight,
+  Box3,
   BufferAttribute,
   BufferGeometry,
   Color,
@@ -11,6 +12,7 @@ import {
   MeshPhongMaterial,
   PerspectiveCamera,
   Scene,
+  Sphere,
   Vector3,
   WebGLRenderer,
 } from "three";
@@ -32,28 +34,18 @@ const COLOR_BODY = new Color("#ea580c");
 const INK_BAND_MM = 2.5;
 
 /**
- * Exact camera poses (world space, Z-up). Paste new values from the
- * console `[StampPreview camera]` log — set 1:1, no remapping.
+ * Default views are direction-only (Z-up). Distance is derived from mesh
+ * bounds + current FOV/aspect so framing stays consistent across viewport
+ * size and browser zoom.
+ *
+ * Main: print-face view from below. Tiny Y bias keeps lookAt stable with
+ * world +Z up (must not be parallel to the view axis).
+ * Inset: 3/4 product view of the full stamp.
  */
-type CameraPose = {
-  position: { x: number; y: number; z: number };
-  target: { x: number; y: number; z: number };
-  up: { x: number; y: number; z: number };
-};
-
-/** Interactive main canvas — fit / Reset camera. */
-const MAIN_DEFAULT_CAMERA: CameraPose = {
-  position: { x: 8.093, y: -0.886, z: -139.191 },
-  target: { x: 8.094, y: 0.048, z: -43.518 },
-  up: { x: 0, y: 0, z: 1 },
-};
-
-/** Locked top-left inset — fixed product view. */
-const INSET_DEFAULT_CAMERA: CameraPose = {
-  position: { x: 73.75, y: -238.066, z: 110.649 },
-  target: { x: 30.388, y: -56.134, z: 51.388 },
-  up: { x: 0, y: 0, z: 1 },
-};
+const MAIN_VIEW_DIRECTION = new Vector3(0, -0.06, -1).normalize();
+const INSET_VIEW_DIRECTION = new Vector3(0.221, -0.928, 0.302).normalize();
+/** Extra margin around the fitted radius (1 = tight fit). */
+const FIT_PADDING = 1.35;
 
 /**
  * Ink simulation on the design relief only: darkest at the print bed,
@@ -168,39 +160,81 @@ function createRenderer(container: HTMLElement): WebGLRenderer | null {
       return null;
     }
     const renderer = new WebGLRenderer({ antialias: true, canvas: probe });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
+    // Fill the container in CSS pixels. Drawing-buffer size is set via
+    // setPixelRatio + setSize(…, false); without this, canvas intrinsic size
+    // tracks the backing store (width*dpr) and browser zoom clips the view.
+    const canvas = renderer.domElement;
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    container.appendChild(canvas);
     return renderer;
   } catch {
     return null;
   }
 }
 
-function applyFixedCameraPose(camera: PerspectiveCamera, pose: CameraPose) {
-  camera.up.set(pose.up.x, pose.up.y, pose.up.z);
-  camera.position.set(pose.position.x, pose.position.y, pose.position.z);
-  camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
+const _fitBox = new Box3();
+const _fitCenter = new Vector3();
+const _fitSphere = new Sphere();
 
-  const radius = camera.position.distanceTo(
-    new Vector3(pose.target.x, pose.target.y, pose.target.z),
-  );
-  camera.near = Math.max(radius / 100, 0.1);
-  camera.far = Math.max(radius * 20, 2000);
+/**
+ * Place camera along `viewDirection` from the mesh center at a distance that
+ * fits the bounding sphere in both FOV axes for the current aspect ratio.
+ */
+function fitDistanceForSphere(
+  camera: PerspectiveCamera,
+  radius: number,
+  padding: number,
+): number {
+  const vFov = (camera.fov * Math.PI) / 180;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * Math.max(camera.aspect, 1e-6));
+  const fitFov = Math.min(vFov, hFov);
+  return (Math.max(radius, 1e-3) / Math.sin(fitFov / 2)) * padding;
+}
+
+function fitFixedCamera(
+  camera: PerspectiveCamera,
+  object: ThreeMesh,
+  viewDirection: Vector3,
+  padding = FIT_PADDING,
+) {
+  _fitBox.setFromObject(object);
+  _fitBox.getCenter(_fitCenter);
+  _fitBox.getBoundingSphere(_fitSphere);
+  const distance = fitDistanceForSphere(camera, _fitSphere.radius, padding);
+
+  camera.up.set(0, 0, 1);
+  camera.position.copy(_fitCenter).addScaledVector(viewDirection, distance);
+  camera.lookAt(_fitCenter);
+  camera.near = Math.max(distance / 100, 0.1);
+  camera.far = Math.max(distance * 20, 2000);
   camera.updateProjectionMatrix();
 }
 
-function applyOrbitCameraPose(
+/**
+ * Frame the print face: aim at the bed-center of the XY footprint and fit
+ * distance to that disc — not the full mesh sphere (handle would pull the
+ * target up the +Z axis and shove the face off-center).
+ */
+function fitOrbitCamera(
   camera: PerspectiveCamera,
   controls: OrbitControls,
-  pose: CameraPose,
+  object: ThreeMesh,
+  viewDirection: Vector3,
+  padding = FIT_PADDING,
 ) {
-  camera.up.set(pose.up.x, pose.up.y, pose.up.z);
-  camera.position.set(pose.position.x, pose.position.y, pose.position.z);
-  controls.target.set(pose.target.x, pose.target.y, pose.target.z);
+  _fitBox.setFromObject(object);
+  const { min, max } = _fitBox;
+  const radiusXY = Math.max(max.x - min.x, max.y - min.y) * 0.5;
+  _fitCenter.set((min.x + max.x) * 0.5, (min.y + max.y) * 0.5, min.z);
+  const distance = fitDistanceForSphere(camera, radiusXY, padding);
 
-  const radius = camera.position.distanceTo(controls.target);
-  camera.near = Math.max(radius / 100, 0.1);
-  camera.far = Math.max(radius * 20, 2000);
+  camera.up.set(0, 0, 1);
+  camera.position.copy(_fitCenter).addScaledVector(viewDirection, distance);
+  controls.target.copy(_fitCenter);
+  camera.near = Math.max(distance / 100, 0.1);
+  camera.far = Math.max(distance * 20, 2000);
   camera.updateProjectionMatrix();
   controls.update();
 }
@@ -209,35 +243,6 @@ function buildStampObject(mesh: Mesh, material: MeshPhongMaterial): ThreeMesh {
   const geometry = meshToThreeGeometry(mesh);
   applyHeightContrastColors(geometry);
   return new ThreeMesh(geometry, material);
-}
-
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
-
-/** Logs the exact fields for MAIN_DEFAULT_CAMERA — copy/paste 1:1. */
-function logCameraPose(
-  camera: PerspectiveCamera,
-  controls: OrbitControls,
-  reason: string,
-) {
-  console.log(`[StampPreview camera:${reason}] paste into MAIN_DEFAULT_CAMERA:`, {
-    position: {
-      x: round3(camera.position.x),
-      y: round3(camera.position.y),
-      z: round3(camera.position.z),
-    },
-    target: {
-      x: round3(controls.target.x),
-      y: round3(controls.target.y),
-      z: round3(controls.target.z),
-    },
-    up: {
-      x: round3(camera.up.x),
-      y: round3(camera.up.y),
-      z: round3(camera.up.z),
-    },
-  });
 }
 
 export function StampPreview({ mesh, status }: StampPreviewProps) {
@@ -280,9 +285,6 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     controls.enableZoom = true;
     controls.enableRotate = true;
 
-    const onControlsEnd = () => logCameraPose(mainCamera, controls, "end");
-    controls.addEventListener("end", onControlsEnd);
-
     addStampLights(mainScene, DEFAULT_LIGHTING);
     addStampLights(insetScene, DEFAULT_LIGHTING);
 
@@ -295,11 +297,39 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     let disposed = false;
     /** Only frame main orbit on first mesh after empty — rebuilds must not fight the user. */
     let mainCameraFramed = false;
+    /** Re-fit on resize while still at the default framing. */
+    let mainCameraAtDefault = false;
+
+    const frameMainDefault = () => {
+      if (!mainStamp) {
+        return;
+      }
+      // Cold load can run before layout; avoid locking in a 1×1 fit.
+      if (mainContainer.clientWidth < 2 || mainContainer.clientHeight < 2) {
+        return;
+      }
+      fitOrbitCamera(mainCamera, controls, mainStamp, MAIN_VIEW_DIRECTION);
+      mainCameraFramed = true;
+      mainCameraAtDefault = true;
+    };
+
+    const frameInsetDefault = () => {
+      if (!insetStamp) {
+        return;
+      }
+      if (insetContainer.clientWidth < 2 || insetContainer.clientHeight < 2) {
+        return;
+      }
+      fitFixedCamera(insetCamera, insetStamp, INSET_VIEW_DIRECTION);
+    };
+
+    const onControlsStart = () => {
+      mainCameraAtDefault = false;
+    };
+    controls.addEventListener("start", onControlsStart);
 
     const resetCamera = () => {
-      applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
-      mainCameraFramed = true;
-      logCameraPose(mainCamera, controls, "reset");
+      frameMainDefault();
     };
     resetCameraRef.current = resetCamera;
 
@@ -316,6 +346,7 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
       }
       if (!next) {
         mainCameraFramed = false;
+        mainCameraAtDefault = false;
         return;
       }
 
@@ -325,11 +356,9 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
       insetScene.add(insetStamp);
 
       if (!mainCameraFramed) {
-        applyOrbitCameraPose(mainCamera, controls, MAIN_DEFAULT_CAMERA);
-        mainCameraFramed = true;
-        logCameraPose(mainCamera, controls, "fit");
+        frameMainDefault();
       }
-      applyFixedCameraPose(insetCamera, INSET_DEFAULT_CAMERA);
+      frameInsetDefault();
     };
 
     replaceMeshRef.current = replaceStampMesh;
@@ -337,21 +366,33 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     const setSize = () => {
       const mainW = mainContainer.clientWidth || 1;
       const mainH = mainContainer.clientHeight || 1;
+      // Browser zoom changes devicePixelRatio without a reload — keep in sync.
+      const pixelRatio = Math.min(window.devicePixelRatio, 2);
       mainCamera.aspect = mainW / mainH;
       mainCamera.updateProjectionMatrix();
+      mainRenderer.setPixelRatio(pixelRatio);
       mainRenderer.setSize(mainW, mainH, false);
 
       const insetW = insetContainer.clientWidth || 1;
       const insetH = insetContainer.clientHeight || 1;
       insetCamera.aspect = insetW / insetH;
       insetCamera.updateProjectionMatrix();
+      insetRenderer.setPixelRatio(pixelRatio);
       insetRenderer.setSize(insetW, insetH, false);
+
+      // Aspect / DPR changes — re-fit defaults; also finish a deferred first fit.
+      if (mainCameraAtDefault || (mainStamp !== null && !mainCameraFramed)) {
+        frameMainDefault();
+      }
+      frameInsetDefault();
     };
     setSize();
 
     const resizeObserver = new ResizeObserver(setSize);
     resizeObserver.observe(mainContainer);
     resizeObserver.observe(insetContainer);
+    // Browser zoom can change devicePixelRatio without a box resize.
+    window.addEventListener("resize", setSize);
 
     const animate = () => {
       if (disposed) {
@@ -367,7 +408,8 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     return () => {
       disposed = true;
       cancelAnimationFrame(frameId);
-      controls.removeEventListener("end", onControlsEnd);
+      controls.removeEventListener("start", onControlsStart);
+      window.removeEventListener("resize", setSize);
       resizeObserver.disconnect();
       controls.dispose();
       if (mainStamp) {
