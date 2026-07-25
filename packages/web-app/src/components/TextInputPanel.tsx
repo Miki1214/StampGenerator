@@ -21,6 +21,10 @@ const labelClassName = "block font-mono text-sm text-slate";
 /** Smallest reliably printable letter height offered in the UI. */
 export const MIN_TEXT_SIZE_MM = 40;
 
+/** Default copy seeded into the form and pre-imported onto the draw canvas. */
+export const DEFAULT_STAMP_TEXT = "Michal Ilczuk Software Development";
+export const DEFAULT_STAMP_FONT_ID: BundledFontId = "display";
+
 const FONT_PREVIEW_FAMILY: Record<BundledFontId, string> = {
   sans: "var(--font-stamp-sans)",
   serif: "var(--font-stamp-serif)",
@@ -49,8 +53,8 @@ export function TextInputPanel({
   baseShape,
   frameUnits,
 }: TextInputPanelProps) {
-  const [text, setText] = useState("");
-  const [fontId, setFontId] = useState<BundledFontId>("sans");
+  const [text, setText] = useState(DEFAULT_STAMP_TEXT);
+  const [fontId, setFontId] = useState<BundledFontId>(DEFAULT_STAMP_FONT_ID);
   const [fontSizeMm, setFontSizeMm] = useState(MIN_TEXT_SIZE_MM);
   const [verticalAlign, setVerticalAlign] =
     useState<TextVerticalAlign>("border");

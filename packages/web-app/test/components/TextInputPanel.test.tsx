@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
+  DEFAULT_STAMP_FONT_ID,
+  DEFAULT_STAMP_TEXT,
   MIN_TEXT_SIZE_MM,
   TextInputPanel,
 } from "../../src/components/TextInputPanel";
@@ -39,7 +41,7 @@ describe("TextInputPanel", () => {
     });
   });
 
-  it("defaults to 40 mm size and around-the-border alignment on round stamps", () => {
+  it("defaults to Display font, seeded stamp text, 40 mm size, and border alignment", () => {
     const onImport = vi.fn();
 
     render(
@@ -50,6 +52,11 @@ describe("TextInputPanel", () => {
       />,
     );
 
+    expect(screen.getByLabelText(/^font$/i)).toHaveProperty("value", "display");
+    expect(screen.getByLabelText(/^text$/i)).toHaveProperty(
+      "value",
+      DEFAULT_STAMP_TEXT,
+    );
     expect(screen.getByLabelText(/size/i)).toHaveProperty(
       "value",
       String(MIN_TEXT_SIZE_MM),
@@ -59,13 +66,12 @@ describe("TextInputPanel", () => {
       "border",
     );
 
-    fireEvent.change(screen.getByLabelText(/^text$/i), {
-      target: { value: "Hi" },
-    });
     fireEvent.click(screen.getByRole("button", { name: /add text/i }));
 
     expect(onImport).toHaveBeenCalledWith(
       expect.objectContaining({
+        text: DEFAULT_STAMP_TEXT,
+        fontId: DEFAULT_STAMP_FONT_ID,
         fontSizeMm: MIN_TEXT_SIZE_MM,
         verticalAlign: "border",
       }),
@@ -177,7 +183,8 @@ describe("TextInputPanel", () => {
     );
 
     const preview = screen.getByLabelText(/font preview/i);
-    expect(preview.textContent).toContain("Aa Bb Cc");
+    expect(preview.textContent).toBe(DEFAULT_STAMP_TEXT);
+    expect(preview.style.fontFamily).toContain("--font-stamp-display");
 
     fireEvent.change(screen.getByLabelText(/^text$/i), {
       target: { value: "Kimi" },

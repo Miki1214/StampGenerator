@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   StampOptions,
   TextImportRequest,
@@ -17,6 +17,11 @@ import {
 import { StampPreview } from "./components/StampPreview";
 import { StampSizeSelector } from "./components/StampSizeSelector";
 import { SvgDropZone } from "./components/SvgDropZone";
+import {
+  DEFAULT_STAMP_FONT_ID,
+  DEFAULT_STAMP_TEXT,
+  MIN_TEXT_SIZE_MM,
+} from "./components/TextInputPanel";
 import { ValidationMessages } from "./components/ValidationMessages";
 import { useDebouncedStampPreview } from "./hooks/useDebouncedStampPreview";
 import { useStampPipeline } from "./hooks/useStampPipeline";
@@ -69,6 +74,32 @@ export function App() {
       drawingCanvasRef.current?.addOutlineShapes(shapes);
     })();
   };
+
+  // Seed the draw canvas once with the default stamp text (StrictMode-safe).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const shapes = await pipeline.importFromText({
+        text: DEFAULT_STAMP_TEXT,
+        fontId: DEFAULT_STAMP_FONT_ID,
+        fontSizeMm: MIN_TEXT_SIZE_MM,
+        verticalAlign:
+          DEFAULT_OPTIONS.baseShape === "round" ? "border" : "center",
+        lineAlign: "center",
+        frameUnits: DEFAULT_OPTIONS.canvasSizeUnits,
+        baseShape: DEFAULT_OPTIONS.baseShape,
+      });
+      if (cancelled || !shapes) {
+        return;
+      }
+      drawingCanvasRef.current?.addOutlineShapes(shapes);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only seed from fixed defaults; pipeline identity is unstable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validationResult =
     pipeline.state.status === "invalid"
