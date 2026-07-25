@@ -141,6 +141,12 @@ export function App() {
     })();
   };
 
+  const handleSvgRemove = (id: string) => {
+    drawingCanvasRef.current?.removeBySvgId(id);
+    setSvgLayers((current) => current.filter((entry) => entry.id !== id));
+    setSelectedSvgId((current) => (current === id ? null : current));
+  };
+
   const handleClearCanvas = () => {
     drawingCanvasRef.current?.clear();
     setSvgLayers([]);
@@ -208,6 +214,7 @@ export function App() {
             <CollapsibleSvgPanel
               onImport={handleSvgImport}
               onReposition={handleSvgReposition}
+              onRemove={handleSvgRemove}
               layers={svgLayers}
               selectedId={selectedSvgId}
               onSelect={setSelectedSvgId}

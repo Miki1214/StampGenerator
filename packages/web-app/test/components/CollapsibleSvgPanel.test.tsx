@@ -22,6 +22,7 @@ describe("CollapsibleSvgPanel", () => {
       <CollapsibleSvgPanel
         onImport={() => {}}
         onReposition={() => {}}
+        onRemove={() => {}}
         layers={[]}
         selectedId={null}
         onSelect={() => {}}
@@ -64,6 +65,7 @@ describe("CollapsibleSvgPanel", () => {
       <CollapsibleSvgPanel
         onImport={onImport}
         onReposition={onReposition}
+        onRemove={() => {}}
         layers={[SAMPLE_LAYER]}
         selectedId="layer-1"
         onSelect={onSelect}
@@ -115,5 +117,31 @@ describe("CollapsibleSvgPanel", () => {
         },
       });
     });
+  });
+
+  it("calls onRemove with the layer id when its X button is clicked", () => {
+    const onRemove = vi.fn();
+
+    render(
+      <CollapsibleSvgPanel
+        onImport={() => {}}
+        onReposition={() => {}}
+        onRemove={onRemove}
+        layers={[SAMPLE_LAYER]}
+        selectedId="layer-1"
+        onSelect={() => {}}
+        frameUnits={400}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /add vector artwork to the stamp/i,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /remove star/i }));
+
+    expect(onRemove).toHaveBeenCalledWith("layer-1");
   });
 });

@@ -18,6 +18,7 @@ export interface SvgImportSettings {
 export interface SvgInputPanelProps {
   onImport: (settings: SvgImportSettings) => void;
   onReposition: (placement: SvgPlacementOptions) => void;
+  onRemove: (id: string) => void;
   layers: SvgLayer[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -68,6 +69,7 @@ function buildPlacement(
 export function SvgInputPanel({
   onImport,
   onReposition,
+  onRemove,
   layers,
   selectedId,
   onSelect,
@@ -181,23 +183,35 @@ export function SvgInputPanel({
             {layers.map((layer) => {
               const selected = layer.id === selectedId;
               return (
-                <li key={layer.id}>
+                <li
+                  key={layer.id}
+                  className={[
+                    "flex items-stretch",
+                    selected ? "bg-accent/15" : "hover:bg-navy-darkest/60",
+                  ].join(" ")}
+                >
                   <button
                     type="button"
                     role="option"
                     aria-selected={selected}
                     onClick={() => onSelect(layer.id)}
                     className={[
-                      "flex w-full items-center justify-between gap-3 px-3 py-2 font-mono text-sm text-left transition-colors",
-                      selected
-                        ? "bg-accent/15 text-accent"
-                        : "text-slate-light hover:bg-navy-darkest/60",
+                      "flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2 font-mono text-sm text-left transition-colors",
+                      selected ? "text-accent" : "text-slate-light",
                     ].join(" ")}
                   >
                     <span className="truncate">{layer.label}</span>
                     <span className="shrink-0 text-xs text-slate/70">
                       {Math.round(layer.placement.sizeFraction * 100)}%
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${layer.label}`}
+                    onClick={() => onRemove(layer.id)}
+                    className="shrink-0 px-3 font-mono text-sm text-slate hover:text-red-400 transition-colors"
+                  >
+                    ×
                   </button>
                 </li>
               );

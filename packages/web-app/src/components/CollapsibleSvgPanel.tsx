@@ -9,6 +9,7 @@ import {
 export interface CollapsibleSvgPanelProps {
   onImport: (settings: SvgImportSettings) => void;
   onReposition: (placement: SvgPlacementOptions) => void;
+  onRemove: (id: string) => void;
   layers: SvgLayer[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -19,6 +20,7 @@ export interface CollapsibleSvgPanelProps {
 export function CollapsibleSvgPanel({
   onImport,
   onReposition,
+  onRemove,
   layers,
   selectedId,
   onSelect,
@@ -47,6 +49,7 @@ export function CollapsibleSvgPanel({
           <SvgInputPanel
             onImport={onImport}
             onReposition={onReposition}
+            onRemove={onRemove}
             layers={layers}
             selectedId={selectedId}
             onSelect={onSelect}
