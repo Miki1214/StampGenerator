@@ -17,6 +17,13 @@ describe("Stamp Generator app shell", () => {
     expect(screen.getByRole("heading", { name: /Export/i })).toBeTruthy();
   });
 
+  it("notes that Preview is mirrored so the stamp imprint matches the canvas", () => {
+    render(<App />);
+    expect(
+      screen.getByText(/mirrored.*stamp.*match.*canvas/i),
+    ).toBeTruthy();
+  });
+
   it("nests text tools under Draw, collapsed by default, without a Text tab", () => {
     render(<App />);
     expect(screen.queryByRole("tab", { name: /text/i })).toBeNull();

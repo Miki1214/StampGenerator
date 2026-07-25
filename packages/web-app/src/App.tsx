@@ -223,13 +223,18 @@ export function App() {
           >
             <span className="mr-2">01.</span>Design
           </h2>
-          <h2
-            id="preview"
-            className="order-3 lg:order-2 font-mono text-sm text-accent self-end flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
-          >
-            <span>
-              <span className="mr-2">02.</span>Preview
-            </span>
+          <div className="order-3 lg:order-2 self-end flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <div>
+              <h2
+                id="preview"
+                className="font-mono text-sm text-accent"
+              >
+                <span className="mr-2">02.</span>Preview
+              </h2>
+              <p className="font-mono text-xs text-slate mt-0.5">
+                Mirrored as a stamp so the imprint matches the canvas
+              </p>
+            </div>
             <span className="font-mono text-xs text-slate" aria-live="polite">
               Preview:{" "}
               <span
@@ -244,7 +249,7 @@ export function App() {
                 {pipeline.previewStatus}
               </span>
             </span>
-          </h2>
+          </div>
 
           <div className="order-2 lg:order-3 bg-navy-light rounded-lg p-6 shadow-lg shadow-navy-darkest/40">
             <DrawingCanvas
