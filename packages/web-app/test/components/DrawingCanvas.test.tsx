@@ -177,7 +177,7 @@ describe("DrawingCanvas", () => {
     });
   });
 
-  it("adds an SVG import as a selectable group with borders, rotate enabled, and scale locked", async () => {
+  it("adds an SVG import as a selectable group with borders, rotate handle, and bottom-right resize handle", async () => {
     const ref = createRef<DrawingCanvasHandle>();
 
     render(<DrawingCanvas ref={ref} baseShape="round" />);
@@ -226,15 +226,15 @@ describe("DrawingCanvas", () => {
     expect(group.evented).toBe(true);
     expect(group.hasBorders).toBe(true);
     expect(group.hasControls).toBe(true);
-    expect(group.lockScalingX).toBe(true);
-    expect(group.lockScalingY).toBe(true);
+    expect(group.lockScalingX).toBe(false);
+    expect(group.lockScalingY).toBe(false);
     expect(group.lockRotation).toBe(false);
 
     expect(group.isControlVisible?.("mtr")).toBe(true);
+    expect(group.isControlVisible?.("br")).toBe(true);
     expect(group.isControlVisible?.("tl")).toBe(false);
     expect(group.isControlVisible?.("tr")).toBe(false);
     expect(group.isControlVisible?.("bl")).toBe(false);
-    expect(group.isControlVisible?.("br")).toBe(false);
     expect(group.isControlVisible?.("ml")).toBe(false);
     expect(group.isControlVisible?.("mr")).toBe(false);
     expect(group.isControlVisible?.("mt")).toBe(false);

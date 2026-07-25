@@ -17,7 +17,7 @@ const SAMPLE_LAYER: SvgLayer = {
 };
 
 describe("CollapsibleSvgPanel", () => {
-  it("is collapsed by default and expands to reveal size control, drag hint, and drop zone without numeric position controls", () => {
+  it("is collapsed by default and expands to reveal drag hint and drop zone without size or position controls", () => {
     render(
       <CollapsibleSvgPanel
         onImport={() => {}}
@@ -43,17 +43,17 @@ describe("CollapsibleSvgPanel", () => {
     expect(
       screen.getByRole("region", { name: /svg drop/i }),
     ).toBeTruthy();
-    expect(screen.getByLabelText(/size \(% of stamp\)/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/size \(% of stamp\)/i)).toBeNull();
     expect(screen.queryByLabelText(/position x \(%\)/i)).toBeNull();
     expect(screen.queryByLabelText(/position y \(%\)/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /reposition/i })).toBeNull();
     expect(
       screen.getByText(/click and drag an svg on the canvas to reposition/i),
     ).toBeTruthy();
-    expect(screen.getByText(/use the handle to rotate/i)).toBeTruthy();
+    expect(screen.getByText(/use the handles to rotate or resize/i)).toBeTruthy();
   });
 
-  it("lists uploaded SVGs and imports drops centered with the chosen size", async () => {
+  it("lists uploaded SVGs without a size badge and imports drops at the default size", async () => {
     const onImport = vi.fn();
     const onSelect = vi.fn();
     const svgText =
@@ -77,10 +77,8 @@ describe("CollapsibleSvgPanel", () => {
     );
 
     expect(screen.getByRole("option", { name: /star/i })).toBeTruthy();
+    expect(screen.queryByText("40%")).toBeNull();
 
-    fireEvent.change(screen.getByLabelText(/size \(% of stamp\)/i), {
-      target: { value: "30" },
-    });
     const dropZone = screen.getByRole("region", { name: /svg drop/i });
     const file = new File([svgText], "badge.svg", { type: "image/svg+xml" });
     fireEvent.drop(dropZone, {
@@ -93,7 +91,7 @@ describe("CollapsibleSvgPanel", () => {
         fileName: "badge.svg",
         placement: {
           frameUnits: 400,
-          sizeFraction: 0.3,
+          sizeFraction: 0.4,
           offsetXFraction: 0,
           offsetYFraction: 0,
         },
