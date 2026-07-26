@@ -79,13 +79,24 @@ code edits, run `graphify update .` again (AST-only).
 
 ## Local development
 
+To run the app locally you only need install + `dev`. The rest are optional
+checks (and useful before a PR).
+
 ```bash
+# Install dependencies (local / first-time). Prefer this day-to-day.
 npm install
+
+# Clean install from package-lock.json only (CI / reproducible builds).
+# Use instead of `npm install`, not after it.
 npm ci
-npm test
-npm run lint
-npm run build
+
+# Run the web app (Vite dev server)
 npm run dev --workspace=@stamp-generator/web-app
+
+# Optional — verify before committing
+npm test          # unit tests (workspaces + root Vitest)
+npm run lint      # ESLint across packages
+npm run build     # production build of all workspaces
 ```
 
 ## Phase 0 infrastructure
