@@ -12,7 +12,7 @@ export function BrandHeader() {
           </p>
         </div>
         <p className="font-mono text-xs text-slate/70 shrink-0">
-          Client-side only · No accounts · No uploads
+          Client-side only · No accounts · No persistency
         </p>
       </div>
     </header>

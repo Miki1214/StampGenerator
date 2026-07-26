@@ -1,8 +1,48 @@
-# Stamp Generator
+<p align="center">
+  <img src="docs/images/readme/stamp-mark.png" alt="Stamp Generator design mark" width="120" />
+</p>
 
-Fully client-side web app that turns drawings, SVG files, or text into a
-3D-printable rubber-stamp STL. Built as an npm workspaces monorepo and deployed
-to Azure Static Web Apps.
+<h1 align="center">Stamp Generator</h1>
+
+<p align="center">
+  Design a rubber stamp, validate the geometry, and download a
+  3D-printable STL — entirely in your browser.<br />
+  <strong>Client-side only · No accounts · No persistency</strong>
+</p>
+
+<p align="center">
+  Fully client-side web app that turns drawings, SVG files, or text into a
+  3D-printable rubber-stamp STL. Built as an npm workspaces monorepo and deployed
+  to Azure Static Web Apps.
+</p>
+
+<p align="center">
+  <img src="docs/images/readme/design-and-preview.png" alt="Design canvas beside mirrored 3D stamp preview" width="900" />
+</p>
+
+## What it does
+
+Draw or import artwork on the canvas, preview a mirrored 3D stamp so the imprint
+matches your design, then download an STL ready for printing.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <p align="center"><strong>SVG</strong></p>
+      <p align="center">
+        <img src="docs/images/readme/svg-support.png" alt="Upload and manage SVG artwork" />
+      </p>
+      <p>Drop vectors, then drag, rotate, or resize them on the canvas.</p>
+    </td>
+    <td width="50%" valign="top">
+      <p align="center"><strong>Text</strong></p>
+      <p align="center">
+        <img src="docs/images/readme/text.png" alt="Typography controls for stamp text" />
+      </p>
+      <p>Fonts, size in mm, and border or line layout for typography.</p>
+    </td>
+  </tr>
+</table>
 
 ## Packages
 
