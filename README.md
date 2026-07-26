@@ -99,7 +99,7 @@ npm run lint      # ESLint across packages
 npm run build     # production build of all workspaces
 ```
 
-## Phase 0 infrastructure
+## Infrastructure
 
 Manual Azure prerequisites (subscription, DevOps service connection, and
 remote-state storage) are documented in
