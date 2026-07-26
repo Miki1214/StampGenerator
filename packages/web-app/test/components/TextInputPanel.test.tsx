@@ -1,0 +1,199 @@
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  DEFAULT_STAMP_FONT_ID,
+  DEFAULT_STAMP_TEXT,
+  MIN_TEXT_SIZE_MM,
+  TextInputPanel,
+} from "../../src/components/TextInputPanel";
+
+describe("TextInputPanel", () => {
+  it("calls its import callback with the correct TextImportRequest on submit", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "HELLO" },
+    });
+    fireEvent.change(screen.getByLabelText(/^font$/i), {
+      target: { value: "serif" },
+    });
+    fireEvent.change(screen.getByLabelText(/size/i), {
+      target: { value: "48" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
+
+    expect(onImport).toHaveBeenCalledWith({
+      text: "HELLO",
+      fontId: "serif",
+      fontSizeMm: 48,
+      verticalAlign: "border",
+      lineAlign: "center",
+      frameUnits: 400,
+      baseShape: "round",
+    });
+  });
+
+  it("defaults to Display font, seeded stamp text, 40 mm size, and border alignment", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    expect(screen.getByLabelText(/^font$/i)).toHaveProperty("value", "display");
+    expect(screen.getByLabelText(/^text$/i)).toHaveProperty(
+      "value",
+      DEFAULT_STAMP_TEXT,
+    );
+    expect(screen.getByLabelText(/size/i)).toHaveProperty(
+      "value",
+      String(MIN_TEXT_SIZE_MM),
+    );
+    expect(screen.getByLabelText(/vertical alignment/i)).toHaveProperty(
+      "value",
+      "border",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
+
+    expect(onImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: DEFAULT_STAMP_TEXT,
+        fontId: DEFAULT_STAMP_FONT_ID,
+        fontSizeMm: MIN_TEXT_SIZE_MM,
+        verticalAlign: "border",
+      }),
+    );
+  });
+
+  it("clamps size below the printable minimum up to 40 mm", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "Hi" },
+    });
+    fireEvent.change(screen.getByLabelText(/size/i), {
+      target: { value: "12" },
+    });
+    expect(screen.getByLabelText(/size/i)).toHaveProperty(
+      "value",
+      String(MIN_TEXT_SIZE_MM),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
+    expect(onImport).toHaveBeenCalledWith(
+      expect.objectContaining({ fontSizeMm: MIN_TEXT_SIZE_MM }),
+    );
+  });
+
+  it("hides the Around the border option when the base shape is square", () => {
+    render(
+      <TextInputPanel
+        onImport={() => {}}
+        baseShape="square"
+        frameUnits={400}
+      />,
+    );
+
+    const options = screen
+      .getByLabelText(/vertical alignment/i)
+      .querySelectorAll("option");
+    const labels = [...options].map((option) => option.textContent);
+    expect(labels).not.toContain("Around the border");
+    expect(labels).toContain("Center");
+    expect(labels).toContain("Top-down");
+  });
+
+  it("offers Around the border when the base shape is round", () => {
+    render(
+      <TextInputPanel
+        onImport={() => {}}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    const options = screen
+      .getByLabelText(/vertical alignment/i)
+      .querySelectorAll("option");
+    const labels = [...options].map((option) => option.textContent);
+    expect(labels).toContain("Around the border");
+  });
+
+  it("includes chosen alignment fields in the import payload", () => {
+    const onImport = vi.fn();
+
+    render(
+      <TextInputPanel
+        onImport={onImport}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "A\nB" },
+    });
+    fireEvent.change(screen.getByLabelText(/vertical alignment/i), {
+      target: { value: "top" },
+    });
+    fireEvent.change(screen.getByLabelText(/line alignment/i), {
+      target: { value: "left" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /add text/i }));
+
+    expect(onImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "A\nB",
+        verticalAlign: "top",
+        lineAlign: "left",
+        baseShape: "round",
+        frameUnits: 400,
+      }),
+    );
+  });
+
+  it("shows a font preview that updates with the selected font and text", () => {
+    render(
+      <TextInputPanel
+        onImport={() => {}}
+        baseShape="round"
+        frameUnits={400}
+      />,
+    );
+
+    const preview = screen.getByLabelText(/font preview/i);
+    expect(preview.textContent).toBe(DEFAULT_STAMP_TEXT);
+    expect(preview.style.fontFamily).toContain("--font-stamp-display");
+
+    fireEvent.change(screen.getByLabelText(/^text$/i), {
+      target: { value: "Kimi" },
+    });
+    expect(preview.textContent).toBe("Kimi");
+
+    fireEvent.change(screen.getByLabelText(/^font$/i), {
+      target: { value: "serif" },
+    });
+    expect(preview.style.fontFamily).toContain("--font-stamp-serif");
+  });
+});
