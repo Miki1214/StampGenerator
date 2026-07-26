@@ -10,6 +10,7 @@ import {
   type StampHardwarePart,
   type StampOptions,
 } from "@stamp-generator/geometry-core";
+import { createInProcessGeometryClient } from "../../src/lib/geometry-client";
 import { useStampPipeline } from "../../src/hooks/useStampPipeline";
 import { DRAWING_CANVAS_SIZE_PX } from "../../src/lib/drawing-canvas";
 
@@ -46,8 +47,9 @@ describe("useStampPipeline mesh preview", () => {
       <rect x="10" y="20" width="30" height="40" />
     </svg>`;
     const file = new File([svg], "clean.svg", { type: "image/svg+xml" });
+    const client = createInProcessGeometryClient();
 
-    const { result } = renderHook(() => useStampPipeline());
+    const { result } = renderHook(() => useStampPipeline(client));
 
     await act(async () => {
       await result.current.importFromSvg(file);
@@ -74,8 +76,9 @@ describe("useStampPipeline mesh preview", () => {
       <rect x="10" y="20" width="30" height="40" />
     </svg>`;
     const file = new File([svg], "clean.svg", { type: "image/svg+xml" });
+    const client = createInProcessGeometryClient();
 
-    const { result } = renderHook(() => useStampPipeline());
+    const { result } = renderHook(() => useStampPipeline(client));
 
     await act(async () => {
       await result.current.importFromSvg(file);

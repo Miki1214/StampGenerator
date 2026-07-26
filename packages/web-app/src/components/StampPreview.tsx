@@ -446,13 +446,16 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
     replaceMeshRef.current?.(mesh);
   }, [mesh]);
 
-  const showPlaceholder = !mesh || status !== "ready";
-  const placeholderText =
-    status === "building"
-      ? "Building preview..."
-      : status === "error"
-        ? "Preview failed"
-        : "Draw or import a design to preview the stamp";
+  const hasMesh = mesh !== null;
+  const showEmptyPlaceholder = !hasMesh && status !== "building";
+  const showBuildingOverlay = status === "building";
+  const showErrorPlaceholder = !hasMesh && status === "error";
+  const showChrome = hasMesh && status !== "error";
+
+  const emptyText =
+    status === "error"
+      ? "Preview failed"
+      : "Draw or import a design to preview the stamp";
 
   return (
     <div
@@ -461,17 +464,17 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
       <div
         ref={mainRef}
         className="absolute inset-0"
-        aria-hidden={showPlaceholder}
+        aria-hidden={!hasMesh}
       />
       <div
         ref={insetRef}
         className={`absolute top-3 left-3 z-10 w-[28%] min-w-[5.5rem] aspect-square overflow-hidden rounded border border-slate/25 bg-navy-darkest/35 shadow-lg shadow-navy-darkest/30 pointer-events-none backdrop-blur-[1px] ${
-          showPlaceholder ? "invisible" : ""
+          showChrome ? "" : "invisible"
         }`}
         aria-hidden
         data-testid="stamp-preview-inset"
       />
-      {!showPlaceholder ? (
+      {showChrome ? (
         <button
           type="button"
           className="absolute top-3 right-3 z-10 rounded border border-slate/30 bg-navy-light/90 px-2.5 py-1.5 font-mono text-xs text-slate-light hover:border-accent hover:text-accent transition-colors"
@@ -480,12 +483,25 @@ export function StampPreview({ mesh, status }: StampPreviewProps) {
           Reset camera
         </button>
       ) : null}
-      {showPlaceholder ? (
+      {showBuildingOverlay ? (
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-navy-darkest/45 px-6 text-center backdrop-blur-[1px]"
+          aria-live="polite"
+          data-testid="stamp-preview-building-overlay"
+        >
+          <span
+            className="inline-block size-6 animate-spin rounded-full border-2 border-slate/30 border-t-accent"
+            aria-hidden
+          />
+          <p className="font-mono text-xs text-slate-light">Building preview...</p>
+        </div>
+      ) : null}
+      {showEmptyPlaceholder || showErrorPlaceholder ? (
         <div
           className="absolute inset-0 z-20 flex items-center justify-center bg-navy-darkest/90 px-6 text-center"
           aria-live="polite"
         >
-          <p className="font-mono text-xs text-slate">{placeholderText}</p>
+          <p className="font-mono text-xs text-slate">{emptyText}</p>
         </div>
       ) : null}
     </div>

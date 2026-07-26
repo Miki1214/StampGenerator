@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   BinaryStlExporter,
@@ -6,22 +6,20 @@ import {
   type FabricCanvasLike,
   type Mesh,
   type PathShapeSet,
-  type RawPathSet,
-  ShapeCleaner,
-  ShapeValidator,
-  StampGeometryBuilder,
   type StampOptions,
-  SvgFileImporter,
-  placePathsInFrame,
-  TextOutlineImporter,
   type SvgPlacementOptions,
   type TextImportRequest,
   type ValidationIssue,
 } from "@stamp-generator/geometry-core";
+import {
+  createWorkerGeometryClient,
+  type GeometryClient,
+} from "../lib/geometry-client";
+import {
+  createLatestOnlyQueue,
+  LatestOnlySupersededError,
+} from "../lib/latest-only-queue";
 import { triggerDownload } from "../lib/trigger-download";
-import { ensureBundledFontsLoaded } from "../lib/bundled-fonts";
-import { ensureManifoldReady } from "../lib/manifold-wasm";
-import { ensureStampHardwareLoaded } from "../lib/stamp-hardware";
 
 export type PipelineState =
   | { status: "idle" }
@@ -58,16 +56,14 @@ export interface UseStampPipeline {
   download(options: StampOptions): void;
 }
 
-const DEFAULT_RULES = {
-  minFeatureSizeMm: 0.3,
-  // Text (esp. border arcs) emits many glyph contours; 100 was too low.
-  maxRingCount: 2000,
-};
-
 const IMPORT_TOLERANCE = 0.1;
 
 function optionsCacheKey(options: StampOptions): string {
   return JSON.stringify(options);
+}
+
+function meshContentKey(options: StampOptions, shapes: PathShapeSet): string {
+  return `${optionsCacheKey(options)}|${JSON.stringify(shapes)}`;
 }
 
 function readFileAsText(file: File): Promise<string> {
@@ -80,17 +76,20 @@ function readFileAsText(file: File): Promise<string> {
   });
 }
 
-export function useStampPipeline(): UseStampPipeline {
+export function useStampPipeline(
+  client: GeometryClient = createWorkerGeometryClient(),
+): UseStampPipeline {
   const [state, setState] = useState<PipelineState>({ status: "idle" });
   const [previewMesh, setPreviewMesh] = useState<Mesh | null>(null);
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>("idle");
   const stateRef = useRef(state);
   stateRef.current = state;
+  const clientRef = useRef(client);
+  clientRef.current = client;
 
   const meshCacheRef = useRef<{
     mesh: Mesh;
-    optionsKey: string;
-    shapes: PathShapeSet;
+    contentKey: string;
   } | null>(null);
   const previewGenerationRef = useRef(0);
 
@@ -101,52 +100,39 @@ export function useStampPipeline(): UseStampPipeline {
     setPreviewStatus("idle");
   }, []);
 
-  const processRaw = useCallback(
-    async (loadRaw: () => Promise<RawPathSet> | RawPathSet): Promise<PathShapeSet | null> => {
+  const applyProcessResult = useCallback(
+    (
+      result: Awaited<ReturnType<GeometryClient["processRaw"]>>,
+    ): PathShapeSet | null => {
+      if (!result.ok) {
+        setState({ status: "invalid", issues: result.issues });
+        return null;
+      }
+      setState({
+        status: "ready",
+        shapes: result.shapes,
+        ...(result.warnings?.length ? { warnings: result.warnings } : {}),
+      });
+      return result.shapes;
+    },
+    [],
+  );
+
+  const importFromSvg = useCallback(
+    async (
+      file: File,
+      placement?: SvgPlacementOptions,
+    ): Promise<PathShapeSet | null> => {
       flushSync(() => {
         setState({ status: "importing" });
       });
       try {
-        await ensureManifoldReady();
-        const raw = await loadRaw();
-
+        const text = await readFileAsText(file);
         flushSync(() => {
           setState({ status: "validating" });
         });
-
-        const validator = new ShapeValidator();
-        const rawResult = validator.validateRaw(raw, DEFAULT_RULES);
-        if (!rawResult.ok) {
-          setState({ status: "invalid", issues: rawResult.issues });
-          return null;
-        }
-
-        if (raw.rings.length === 0) {
-          setState({
-            status: "invalid",
-            issues: [
-              {
-                code: "EMPTY_DESIGN",
-                message: "Design is empty — add at least one shape",
-              },
-            ],
-          });
-          return null;
-        }
-
-        const shapes = new ShapeCleaner().clean(raw);
-        const result = validator.validate(shapes, DEFAULT_RULES);
-        if (!result.ok) {
-          setState({ status: "invalid", issues: result.issues });
-          return null;
-        }
-
-        setState({
-          status: "ready",
-          shapes,
-          ...(result.warnings?.length ? { warnings: result.warnings } : {}),
-        });
-        return shapes;
+        const result = await clientRef.current.processSvg(text, placement);
+        return applyProcessResult(result);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Import failed unexpectedly";
@@ -157,34 +143,57 @@ export function useStampPipeline(): UseStampPipeline {
         return null;
       }
     },
-    [],
-  );
-
-  const importFromSvg = useCallback(
-    (file: File, placement?: SvgPlacementOptions) =>
-      processRaw(async () => {
-        const text = await readFileAsText(file);
-        const raw = new SvgFileImporter().import(text, IMPORT_TOLERANCE);
-        return placement ? placePathsInFrame(raw, placement) : raw;
-      }),
-    [processRaw],
+    [applyProcessResult],
   );
 
   const importFromCanvas = useCallback(
-    (canvas: FabricCanvasLike) =>
-      processRaw(() =>
-        new FabricCanvasImporter().import(canvas, IMPORT_TOLERANCE),
-      ),
-    [processRaw],
+    async (canvas: FabricCanvasLike): Promise<PathShapeSet | null> => {
+      flushSync(() => {
+        setState({ status: "importing" });
+      });
+      try {
+        // Fabric extraction stays on the main thread (needs the live canvas).
+        const raw = new FabricCanvasImporter().import(canvas, IMPORT_TOLERANCE);
+        flushSync(() => {
+          setState({ status: "validating" });
+        });
+        const result = await clientRef.current.processRaw(raw);
+        return applyProcessResult(result);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Import failed unexpectedly";
+        setState({
+          status: "invalid",
+          issues: [{ code: "IMPORT_FAILED", message }],
+        });
+        return null;
+      }
+    },
+    [applyProcessResult],
   );
 
   const importFromText = useCallback(
-    (request: TextImportRequest) =>
-      processRaw(async () => {
-        await ensureBundledFontsLoaded();
-        return new TextOutlineImporter().import(request, IMPORT_TOLERANCE);
-      }),
-    [processRaw],
+    async (request: TextImportRequest): Promise<PathShapeSet | null> => {
+      flushSync(() => {
+        setState({ status: "importing" });
+      });
+      try {
+        flushSync(() => {
+          setState({ status: "validating" });
+        });
+        const result = await clientRef.current.processText(request);
+        return applyProcessResult(result);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Import failed unexpectedly";
+        setState({
+          status: "invalid",
+          issues: [{ code: "IMPORT_FAILED", message }],
+        });
+        return null;
+      }
+    },
+    [applyProcessResult],
   );
 
   const resolveShapes = useCallback(
@@ -208,18 +217,42 @@ export function useStampPipeline(): UseStampPipeline {
         return null;
       }
 
-      const key = optionsCacheKey(options);
+      const contentKey = meshContentKey(options, shapes);
       const cached = meshCacheRef.current;
-      if (cached && cached.shapes === shapes && cached.optionsKey === key) {
+      if (cached && cached.contentKey === contentKey) {
         return cached.mesh;
       }
 
-      await ensureStampHardwareLoaded();
-      const mesh = new StampGeometryBuilder().build(shapes, options);
-      meshCacheRef.current = { mesh, optionsKey: key, shapes };
+      const mesh = await clientRef.current.buildMesh(shapes, options);
+      meshCacheRef.current = { mesh, contentKey };
       return mesh;
     },
     [resolveShapes],
+  );
+
+  const previewQueue = useMemo(
+    () =>
+      createLatestOnlyQueue(
+        async (job: {
+          generation: number;
+          options: StampOptions;
+          shapes: PathShapeSet;
+          contentKey: string;
+        }) => {
+          const mesh = await clientRef.current.buildMesh(
+            job.shapes,
+            job.options,
+          );
+          if (job.generation !== previewGenerationRef.current) {
+            return null;
+          }
+          meshCacheRef.current = { mesh, contentKey: job.contentKey };
+          setPreviewMesh(mesh);
+          setPreviewStatus("ready");
+          return mesh;
+        },
+      ),
+    [],
   );
 
   const rebuildPreview = useCallback(
@@ -233,29 +266,28 @@ export function useStampPipeline(): UseStampPipeline {
         return null;
       }
 
+      const contentKey = meshContentKey(options, shapes);
+      const cached = meshCacheRef.current;
+      if (cached && cached.contentKey === contentKey) {
+        setPreviewMesh(cached.mesh);
+        setPreviewStatus("ready");
+        return cached.mesh;
+      }
+
       const generation = ++previewGenerationRef.current;
       setPreviewStatus("building");
 
       try {
-        await ensureStampHardwareLoaded();
-        if (generation !== previewGenerationRef.current) {
-          return null;
-        }
-
-        const mesh = new StampGeometryBuilder().build(shapes, options);
-        if (generation !== previewGenerationRef.current) {
-          return null;
-        }
-
-        meshCacheRef.current = {
-          mesh,
-          optionsKey: optionsCacheKey(options),
+        return await previewQueue.enqueue({
+          generation,
+          options,
           shapes,
-        };
-        setPreviewMesh(mesh);
-        setPreviewStatus("ready");
-        return mesh;
-      } catch {
+          contentKey,
+        });
+      } catch (error) {
+        if (error instanceof LatestOnlySupersededError) {
+          return null;
+        }
         if (generation !== previewGenerationRef.current) {
           return null;
         }
@@ -265,7 +297,7 @@ export function useStampPipeline(): UseStampPipeline {
         return null;
       }
     },
-    [clearPreview, resolveShapes],
+    [clearPreview, previewQueue, resolveShapes],
   );
 
   const exportStl = useCallback(

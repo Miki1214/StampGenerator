@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   StampOptions,
   TextImportRequest,
@@ -26,6 +26,7 @@ import { ValidationMessages } from "./components/ValidationMessages";
 import { useDebouncedStampPreview } from "./hooks/useDebouncedStampPreview";
 import { useStampPipeline } from "./hooks/useStampPipeline";
 import { DRAWING_CANVAS_SIZE_PX } from "./lib/drawing-canvas";
+import { createWorkerGeometryClient } from "./lib/geometry-client";
 
 const DEFAULT_OPTIONS: StampOptions = {
   designHeightMm: 2,
@@ -60,13 +61,19 @@ function createSvgLayerId(): string {
 }
 
 export function App() {
-  const pipeline = useStampPipeline();
+  const geometryClient = useMemo(() => createWorkerGeometryClient(), []);
+  const pipeline = useStampPipeline(geometryClient);
   const drawingCanvasRef = useRef<DrawingCanvasHandle>(null);
   const [options, setOptions] = useState<StampOptions>(DEFAULT_OPTIONS);
   const [svgLayers, setSvgLayers] = useState<SvgLayer[]>([]);
   const [selectedSvgId, setSelectedSvgId] = useState<string | null>(null);
 
-  const drawOptions = withDesignFrame(options);
+  // Warm Manifold WASM + hardware/fonts in the worker before first edit.
+  useEffect(() => {
+    void geometryClient.warm();
+  }, [geometryClient]);
+
+  const drawOptions = useMemo(() => withDesignFrame(options), [options]);
 
   const { onSceneChange } = useDebouncedStampPreview({
     options: drawOptions,

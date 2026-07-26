@@ -72,6 +72,49 @@ describe("ShapeCleaner", () => {
       }
     }
   });
+
+  it("preserves a nested hole and a disjoint island as separate polygons", () => {
+    const raw: RawPathSet = {
+      rings: [
+        {
+          points: [
+            { x: 0, y: 0 },
+            { x: 20, y: 0 },
+            { x: 20, y: 20 },
+            { x: 0, y: 20 },
+          ],
+        },
+        {
+          points: [
+            { x: 5, y: 5 },
+            { x: 15, y: 5 },
+            { x: 15, y: 15 },
+            { x: 5, y: 15 },
+          ],
+        },
+        {
+          points: [
+            { x: 40, y: 40 },
+            { x: 50, y: 40 },
+            { x: 50, y: 50 },
+            { x: 40, y: 50 },
+          ],
+        },
+      ],
+    };
+    const cleaner = new ShapeCleaner();
+
+    const shapes = cleaner.clean(raw);
+
+    expect(shapes).toHaveLength(2);
+    const withHole = shapes.find((s) => s.holes.length === 1);
+    const island = shapes.find((s) => s.holes.length === 0);
+    expect(withHole).toBeDefined();
+    expect(island).toBeDefined();
+    expect(signedArea(withHole!.outer.points)).toBeGreaterThan(0);
+    expect(signedArea(withHole!.holes[0].points)).toBeLessThan(0);
+    expect(signedArea(island!.outer.points)).toBeGreaterThan(0);
+  });
 });
 
 /** Positive signed area => counter-clockwise (CCW) winding. */

@@ -59,11 +59,48 @@ export class ShapeCleaner implements ShapeCleanerContract {
   }
 }
 
+type RingBBox = { minX: number; maxX: number; minY: number; maxY: number };
+
+function ringBoundingBox(points: Point2D[]): RingBBox {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) {
+      minX = p.x;
+    }
+    if (p.x > maxX) {
+      maxX = p.x;
+    }
+    if (p.y < minY) {
+      minY = p.y;
+    }
+    if (p.y > maxY) {
+      maxY = p.y;
+    }
+  }
+  return { minX, maxX, minY, maxY };
+}
+
+function bboxesOverlap(a: RingBBox, b: RingBBox): boolean {
+  return !(
+    a.maxX < b.minX ||
+    a.minX > b.maxX ||
+    a.maxY < b.minY ||
+    a.minY > b.maxY
+  );
+}
+
 /** Even nesting depth → CCW outer; odd depth → CW hole (NonZero fill). */
 function orientRingsForFill(rings: Point2D[][]): Point2D[][] {
+  const boxes = rings.map(ringBoundingBox);
   return rings.map((points, index) => {
     const depth = rings.reduce((count, other, otherIndex) => {
       if (otherIndex === index) {
+        return count;
+      }
+      if (!bboxesOverlap(boxes[index], boxes[otherIndex])) {
         return count;
       }
       return ringFullyInside(points, other) ? count + 1 : count;
@@ -81,11 +118,18 @@ function orientRingsForFill(rings: Point2D[][]): Point2D[][] {
 function nestPolygons(rings: Ring[]): PathShapeSet {
   const outers = rings.filter((r) => signedArea(r.points) > 0);
   const holes = rings.filter((r) => signedArea(r.points) < 0);
+  const outerBoxes = outers.map((o) => ringBoundingBox(o.points));
 
   return outers.map(
-    (outer): PolygonWithHoles => ({
+    (outer, outerIndex): PolygonWithHoles => ({
       outer,
-      holes: holes.filter((hole) => ringFullyInside(hole.points, outer.points)),
+      holes: holes.filter((hole) => {
+        const holeBox = ringBoundingBox(hole.points);
+        if (!bboxesOverlap(holeBox, outerBoxes[outerIndex])) {
+          return false;
+        }
+        return ringFullyInside(hole.points, outer.points);
+      }),
     }),
   );
 }

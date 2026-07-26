@@ -14,6 +14,8 @@ import type {
 import { unionMeshes } from "./union";
 
 export class StampGeometryBuilder implements StampGeometryBuilderContract {
+  private baseHandleCache: { key: string; mesh: Mesh } | null = null;
+
   build(shapes: PathShapeSet, opts: StampOptions): Mesh {
     const scaled = scaleToMm(shapes, opts);
     // When designFrame is set, mirror about the frame center (stamp axis),
@@ -23,16 +25,8 @@ export class StampGeometryBuilder implements StampGeometryBuilderContract {
     const design = extrudeShapes(mirrored, opts.designHeightMm);
     const designBox = getMeshBoundingBox(design);
 
-    // Size the base to the configured stamp canvas footprint.
-    const base =
-      opts.baseShape === "round"
-        ? buildRoundBase(opts.canvasSizeMm)
-        : scaleBaseMeshToFootprint(
-            getStampHardwareMesh("base"),
-            opts.canvasSizeMm,
-            opts.canvasSizeMm,
-          );
-    const handle = getStampHardwareMesh("handle");
+    const baseHandle = this.getBaseHandleAssembly(opts);
+    const baseBox = getMeshBoundingBox(baseHandle);
 
     // The design (the raised, mirrored relief) joins the bottom of the base;
     // the static handle already joins the base's (unscaled) top natively.
@@ -43,21 +37,40 @@ export class StampGeometryBuilder implements StampGeometryBuilderContract {
     // When `designFrame` is set (Text mode), use the frame's center so
     // top/bottom/border layout survives this recentering step; otherwise
     // fall back to the design's tight geometry bbox (Draw/SVG).
-    const baseBox = getMeshBoundingBox(base);
     const designCenter = designCenterXY(designBox, opts);
     const dx = (baseBox.minX + baseBox.maxX) / 2 - designCenter.x;
     const dy = (baseBox.minY + baseBox.maxY) / 2 - designCenter.y;
     const dz = baseBox.minZ - opts.designHeightMm - designBox.minZ;
     const positionedDesign = translateMesh(design, dx, dy, dz);
 
-    const assembled = unionMeshes(
-      unionMeshes(positionedDesign, base),
-      handle,
-    );
+    // One union per design edit: base+handle is cached (see getBaseHandleAssembly).
+    const assembled = unionMeshes(positionedDesign, baseHandle);
 
     // Normalize so the whole stamp sits on the print bed at Z=0.
     const assembledBox = getMeshBoundingBox(assembled);
     return translateMeshZ(assembled, -assembledBox.minZ);
+  }
+
+  /** Cache key: only baseShape + canvasSizeMm affect the static assembly. */
+  private getBaseHandleAssembly(opts: StampOptions): Mesh {
+    const key = `${opts.baseShape}:${opts.canvasSizeMm}`;
+    const cached = this.baseHandleCache;
+    if (cached && cached.key === key) {
+      return cached.mesh;
+    }
+
+    const base =
+      opts.baseShape === "round"
+        ? buildRoundBase(opts.canvasSizeMm)
+        : scaleBaseMeshToFootprint(
+            getStampHardwareMesh("base"),
+            opts.canvasSizeMm,
+            opts.canvasSizeMm,
+          );
+    const handle = getStampHardwareMesh("handle");
+    const mesh = unionMeshes(base, handle);
+    this.baseHandleCache = { key, mesh };
+    return mesh;
   }
 }
 

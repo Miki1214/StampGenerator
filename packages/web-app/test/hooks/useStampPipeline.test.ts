@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { initManifold } from "@stamp-generator/geometry-core";
+import { createInProcessGeometryClient } from "../../src/lib/geometry-client";
 import { useStampPipeline } from "../../src/hooks/useStampPipeline";
 
 describe("useStampPipeline", () => {
@@ -14,9 +15,10 @@ describe("useStampPipeline", () => {
       <rect x="10" y="20" width="30" height="40" />
     </svg>`;
     const file = new File([svg], "clean.svg", { type: "image/svg+xml" });
+    const client = createInProcessGeometryClient();
 
     const { result } = renderHook(() => {
-      const pipeline = useStampPipeline();
+      const pipeline = useStampPipeline(client);
       statuses.push(pipeline.state.status);
       return pipeline;
     });
@@ -49,9 +51,10 @@ describe("useStampPipeline", () => {
       <rect x="0" y="0" width="10" height="0.2" />
     </svg>`;
     const file = new File([svg], "narrow.svg", { type: "image/svg+xml" });
+    const client = createInProcessGeometryClient();
 
     const { result } = renderHook(() => {
-      const pipeline = useStampPipeline();
+      const pipeline = useStampPipeline(client);
       statuses.push(pipeline.state.status);
       return pipeline;
     });
@@ -91,9 +94,10 @@ describe("useStampPipeline", () => {
     const statuses: string[] = [];
     const svg = `<svg xmlns="http://www.w3.org/2000/svg"></svg>`;
     const file = new File([svg], "empty.svg", { type: "image/svg+xml" });
+    const client = createInProcessGeometryClient();
 
     const { result } = renderHook(() => {
-      const pipeline = useStampPipeline();
+      const pipeline = useStampPipeline(client);
       statuses.push(pipeline.state.status);
       return pipeline;
     });

@@ -16,6 +16,20 @@ describe("StampPreview", () => {
     expect(screen.getByText("Building preview...")).toBeTruthy();
   });
 
+  it("keeps the ready mesh visible under a translucent building overlay", () => {
+    const mesh = {
+      vertices: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      triangleIndices: new Uint32Array([0, 1, 2]),
+    };
+    render(<StampPreview mesh={mesh} status="building" />);
+
+    expect(screen.getByRole("button", { name: "Reset camera" })).toBeTruthy();
+    expect(screen.getByTestId("stamp-preview-inset")).toBeTruthy();
+    const overlay = screen.getByTestId("stamp-preview-building-overlay");
+    expect(overlay).toBeTruthy();
+    expect(overlay.textContent).toMatch(/building/i);
+  });
+
   it("shows Reset camera and a locked inset when a ready mesh is present", () => {
     const mesh = {
       vertices: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
